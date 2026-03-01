@@ -1,0 +1,470 @@
+---
+title: Production Best Practices
+description: Learn best practices for deploying Express applications to production environments
+---
+
+Deploying Express applications to production requires careful attention to performance, security, and reliability. This guide covers essential best practices.
+
+## Environment Configuration
+
+<Steps>
+  <Step title="Set NODE_ENV to production">
+    ```bash
+    export NODE_ENV=production
+    ```
+    
+    This enables:
+    - View template caching
+    - Less verbose error messages
+    - Performance optimizations in many packages
+  </Step>
+  
+  <Step title="Use environment variables">
+    ```javascript
+    require('dotenv').config();
+    
+    const config = {
+      port: process.env.PORT || 3000,
+      dbUrl: process.env.DATABASE_URL,
+      sessionSecret: process.env.SESSION_SECRET
+    };
+    ```
+  </Step>
+  
+  <Step title="Validate configuration on startup">
+    ```javascript
+    const requiredEnvVars = [
+      'DATABASE_URL',
+      'SESSION_SECRET',
+      'API_KEY'
+    ];
+    
+    requiredEnvVars.forEach(varName => {
+      if (!process.env[varName]) {
+        console.error(`Missing required environment variable: ${varName}`);
+        process.exit(1);
+      }
+    });
+    ```
+  </Step>
+</Steps>
+
+## Performance Optimization
+
+### Enable Compression
+
+Compress response bodies to reduce bandwidth:
+
+```bash
+npm install compression
+```
+
+```javascript
+const compression = require('compression');
+const express = require('express');
+const app = express();
+
+app.use(compression());
+```
+
+### Use a Reverse Proxy
+
+<Info>
+  Use nginx or Apache as a reverse proxy to handle static files, SSL termination, load balancing, and caching.
+</Info>
+
+<CodeGroup>
+```nginx nginx Configuration
+upstream app {
+  server 127.0.0.1:3000;
+  server 127.0.0.1:3001;
+  server 127.0.0.1:3002;
+}
+
+server {
+  listen 80;
+  server_name example.com;
+
+  # Redirect HTTP to HTTPS
+  return 301 https://$server_name$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name example.com;
+
+  ssl_certificate /path/to/cert.pem;
+  ssl_certificate_key /path/to/key.pem;
+
+  # Serve static files directly
+  location /static/ {
+    alias /path/to/static/;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  # Proxy to Express app
+  location / {
+    proxy_pass http://app;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+```javascript Trust Proxy in Express
+const express = require('express');
+const app = express();
+
+// Enable trust proxy to get correct client IP
+app.set('trust proxy', 1);
+```
+</CodeGroup>
+
+### Enable Caching
+
+```javascript
+const express = require('express');
+const app = express();
+
+// Cache static files
+app.use(express.static('public', {
+  maxAge: '1y',
+  etag: true,
+  lastModified: true
+}));
+
+// Cache views in production
+if (app.get('env') === 'production') {
+  app.enable('view cache');
+}
+```
+
+## Process Management
+
+### Use a Process Manager
+
+<Tip>
+  Use PM2 to manage your Node.js processes, handle crashes, and enable zero-downtime deployments.
+</Tip>
+
+```bash
+npm install -g pm2
+
+# Start app with PM2
+pm2 start app.js -i max
+
+# Start with ecosystem file
+pm2 start ecosystem.config.js
+```
+
+```javascript ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'express-app',
+    script: './app.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    error_file: './logs/err.log',
+    out_file: './logs/out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+  }]
+};
+```
+
+### Graceful Shutdown
+
+```javascript
+const express = require('express');
+const app = express();
+
+const server = app.listen(3000);
+
+// Handle shutdown signals
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
+function gracefulShutdown() {
+  console.log('Received shutdown signal, closing server...');
+  
+  server.close(() => {
+    console.log('HTTP server closed');
+    
+    // Close database connections
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      process.exit(0);
+    });
+  });
+  
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error('Forcing shutdown');
+    process.exit(1);
+  }, 10000);
+}
+```
+
+## Logging
+
+<Warning>
+  Don't use `console.log` in production. Use a proper logging library.
+</Warning>
+
+```bash
+npm install winston morgan
+```
+
+<CodeGroup>
+```javascript Winston Logger
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' })
+  ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
+module.exports = logger;
+```
+
+```javascript HTTP Request Logging
+const morgan = require('morgan');
+const logger = require('./logger');
+
+// Create stream for Morgan
+const stream = {
+  write: (message) => logger.info(message.trim())
+};
+
+// Use Morgan with Winston
+app.use(morgan('combined', { stream }));
+```
+</CodeGroup>
+
+## Error Handling
+
+```javascript
+const logger = require('./logger');
+
+// 404 handler
+app.use((req, res, next) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  // Log error
+  logger.error({
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method
+  });
+  
+  // Don't leak error details in production
+  const statusCode = err.status || 500;
+  const message = process.env.NODE_ENV === 'production'
+    ? 'Internal server error'
+    : err.message;
+  
+  res.status(statusCode).json({ error: message });
+});
+```
+
+## Database Connection Pooling
+
+<CodeGroup>
+```javascript MongoDB with Mongoose
+const mongoose = require('mongoose');
+
+mongoose.connect(process.env.DATABASE_URL, {
+  maxPoolSize: 10,
+  minPoolSize: 5,
+  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 5000
+});
+```
+
+```javascript PostgreSQL with node-postgres
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
+});
+```
+</CodeGroup>
+
+## Health Checks
+
+```javascript
+app.get('/health', async (req, res) => {
+  const healthcheck = {
+    uptime: process.uptime(),
+    message: 'OK',
+    timestamp: Date.now()
+  };
+  
+  try {
+    // Check database connection
+    await mongoose.connection.db.admin().ping();
+    healthcheck.database = 'connected';
+    
+    res.status(200).json(healthcheck);
+  } catch (error) {
+    healthcheck.database = 'disconnected';
+    healthcheck.message = error.message;
+    res.status(503).json(healthcheck);
+  }
+});
+```
+
+## Security Headers
+
+```javascript
+const helmet = require('helmet');
+const express = require('express');
+const app = express();
+
+app.use(helmet());
+app.disable('x-powered-by');
+
+// Enable CORS for specific origins
+const cors = require('cors');
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(','),
+  credentials: true
+}));
+```
+
+## Request Size Limits
+
+```javascript
+const express = require('express');
+const app = express();
+
+// Limit request body size
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+```
+
+## Monitoring
+
+<Accordion title="Application Performance Monitoring">
+  Use APM tools like:
+  - New Relic
+  - Datadog
+  - AppDynamics
+  - Elastic APM
+  
+  ```bash
+  npm install newrelic
+  ```
+  
+  ```javascript
+  // Must be first require
+  require('newrelic');
+  const express = require('express');
+  ```
+</Accordion>
+
+<Accordion title="Custom Metrics">
+  ```javascript
+  const client = require('prom-client');
+  
+  // Create metrics
+  const httpRequestDuration = new client.Histogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'status_code']
+  });
+  
+  // Track metrics
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = (Date.now() - start) / 1000;
+      httpRequestDuration.labels(req.method, req.route?.path || req.path, res.statusCode).observe(duration);
+    });
+    next();
+  });
+  
+  // Expose metrics endpoint
+  app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', client.register.contentType);
+    res.end(await client.register.metrics());
+  });
+  ```
+</Accordion>
+
+## Production Checklist
+
+<Steps>
+  <Step title="Environment">
+    - [ ] Set NODE_ENV=production
+    - [ ] Use environment variables for config
+    - [ ] Validate required env vars on startup
+  </Step>
+  
+  <Step title="Performance">
+    - [ ] Enable compression
+    - [ ] Use reverse proxy (nginx/Apache)
+    - [ ] Enable view caching
+    - [ ] Configure static file caching
+    - [ ] Use connection pooling
+  </Step>
+  
+  <Step title="Reliability">
+    - [ ] Use process manager (PM2)
+    - [ ] Implement graceful shutdown
+    - [ ] Add health check endpoints
+    - [ ] Set up monitoring and alerts
+  </Step>
+  
+  <Step title="Security">
+    - [ ] Use HTTPS
+    - [ ] Set security headers (Helmet)
+    - [ ] Implement rate limiting
+    - [ ] Validate and sanitize input
+    - [ ] Keep dependencies updated
+  </Step>
+  
+  <Step title="Logging">
+    - [ ] Use proper logging library
+    - [ ] Log errors with context
+    - [ ] Set up log aggregation
+    - [ ] Don't log sensitive data
+  </Step>
+</Steps>
+
+## Related
+
+- [Security Best Practices](/guides/security)
+- [Error Handling](/guides/error-handling)
+- [Debugging Express Apps](/guides/debugging)

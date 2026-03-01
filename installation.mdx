@@ -1,0 +1,210 @@
+---
+title: Installation
+description: Install Express in your Node.js project using npm, yarn, or pnpm
+---
+
+## Prerequisites
+
+Before installing Express, make sure you have the following installed on your system:
+
+<Steps>
+  <Step title="Install Node.js">
+    Download and install [Node.js](https://nodejs.org/en/download/) version 18 or higher.
+    
+    Verify your installation:
+    ```bash
+    node --version
+    ```
+  </Step>
+  
+  <Step title="Create a project directory">
+    Create a new directory for your project and navigate into it:
+    ```bash
+    mkdir myapp
+    cd myapp
+    ```
+  </Step>
+  
+  <Step title="Initialize your project">
+    Create a `package.json` file using the npm init command:
+    ```bash
+    npm init
+    ```
+    
+    This will prompt you for various project details. You can accept the defaults by pressing Enter, or use `-y` to skip all prompts:
+    ```bash
+    npm init -y
+    ```
+  </Step>
+</Steps>
+
+## Installing Express
+
+Express is a [Node.js](https://nodejs.org/en/) module available through the [npm registry](https://www.npmjs.com/). You can install it using your preferred package manager:
+
+<CodeGroup>
+```bash npm
+npm install express
+```
+
+```bash yarn
+yarn add express
+```
+
+```bash pnpm
+pnpm add express
+```
+</CodeGroup>
+
+<Info>
+This will install Express and add it to your `package.json` dependencies.
+</Info>
+
+## Installing with Specific Version
+
+To install a specific version of Express, specify the version number:
+
+<CodeGroup>
+```bash npm
+npm install express@4.18.0
+```
+
+```bash yarn
+yarn add express@4.18.0
+```
+
+```bash pnpm
+pnpm add express@4.18.0
+```
+</CodeGroup>
+
+## Development Installation
+
+If you're contributing to Express or want to install it as a development dependency:
+
+<CodeGroup>
+```bash npm
+npm install --save-dev express
+```
+
+```bash yarn
+yarn add --dev express
+```
+
+```bash pnpm
+pnpm add --save-dev express
+```
+</CodeGroup>
+
+## Installing the Express Generator (Optional)
+
+The Express application generator (`express-generator`) is an optional tool that quickly creates an application skeleton:
+
+<CodeGroup>
+```bash npm
+npm install -g express-generator@4
+```
+
+```bash yarn
+yarn global add express-generator@4
+```
+
+```bash pnpm
+pnpm add -g express-generator@4
+```
+</CodeGroup>
+
+<Warning>
+The generator's major version should match Express's major version (e.g., use `express-generator@4` with Express 4.x).
+</Warning>
+
+### Using the Generator
+
+Once installed, you can create a new Express application:
+
+```bash
+express myapp
+cd myapp
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the application:
+
+```bash
+npm start
+```
+
+Your application will be available at `http://localhost:3000`.
+
+## Verifying Installation
+
+To verify that Express is installed correctly, create a simple test file:
+
+```javascript index.js
+const express = require('express')
+const app = express()
+
+app.get('/', (req, res) => {
+  res.send('Express is installed!')
+})
+
+app.listen(3000, () => {
+  console.log('Test server running on http://localhost:3000')
+})
+```
+
+Run the file:
+
+```bash
+node index.js
+```
+
+Open your browser and navigate to `http://localhost:3000`. You should see "Express is installed!" displayed.
+
+## Common Installation Issues
+
+<AccordionGroup>
+  <Accordion title="Permission denied errors">
+    If you get permission errors when installing globally, avoid using `sudo`. Instead, configure npm to install global packages in your home directory:
+    
+    ```bash
+    mkdir ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </Accordion>
+  
+  <Accordion title="Node version too old">
+    Express requires Node.js 18 or higher. Update Node.js using:
+    
+    - [Node Version Manager (nvm)](https://github.com/nvm-sh/nvm)
+    - Download the latest version from [nodejs.org](https://nodejs.org)
+  </Accordion>
+  
+  <Accordion title="Package conflicts">
+    If you encounter dependency conflicts, try clearing your npm cache:
+    
+    ```bash
+    npm cache clean --force
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Create your first Express application
+  </Card>
+  <Card title="Hello World" icon="hand-wave" href="/hello-world">
+    Step-by-step Hello World tutorial
+  </Card>
+</CardGroup>

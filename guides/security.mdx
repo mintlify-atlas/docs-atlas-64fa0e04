@@ -1,0 +1,400 @@
+---
+title: Security Best Practices
+description: Learn essential security practices for building secure Express applications
+---
+
+Security is critical for production applications. This guide covers essential security practices for Express apps.
+
+## Use Helmet
+
+Helmet helps secure Express apps by setting various HTTP headers.
+
+<Steps>
+  <Step title="Install Helmet">
+    ```bash
+    npm install helmet
+    ```
+  </Step>
+  
+  <Step title="Use Helmet middleware">
+    ```javascript
+    const helmet = require('helmet');
+    const express = require('express');
+    const app = express();
+    
+    app.use(helmet());
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  Helmet sets multiple security headers including Content-Security-Policy, X-DNS-Prefetch-Control, X-Frame-Options, and more.
+</Info>
+
+## Prevent SQL Injection
+
+Always use parameterized queries or prepared statements:
+
+<CodeGroup>
+```javascript Bad - Vulnerable to SQL Injection
+const userId = req.params.id;
+const query = 'SELECT * FROM users WHERE id = ' + userId; // DON'T DO THIS!
+db.query(query);
+```
+
+```javascript Good - Parameterized Query
+const userId = req.params.id;
+const query = 'SELECT * FROM users WHERE id = $1';
+db.query(query, [userId]);
+```
+
+```javascript Good - ORM (Sequelize)
+const user = await User.findByPk(req.params.id);
+```
+</CodeGroup>
+
+<Warning>
+  Never concatenate user input directly into SQL queries. Always use parameterized queries.
+</Warning>
+
+## Prevent Cross-Site Scripting (XSS)
+
+<Steps>
+  <Step title="Escape output in templates">
+    Always escape user-generated content:
+    
+    ```html
+    <!-- EJS - Use <%= not <%- -->
+    <p>Welcome <%= username %></p>
+    
+    <!-- Pug - Automatic escaping -->
+    p Welcome #{username}
+    ```
+  </Step>
+  
+  <Step title="Sanitize input">
+    ```bash
+    npm install express-validator
+    ```
+    
+    ```javascript
+    const { body, validationResult } = require('express-validator');
+    
+    app.post('/user',
+      body('email').isEmail().normalizeEmail(),
+      body('name').trim().escape(),
+      (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+        }
+        // Process valid data
+      }
+    );
+    ```
+  </Step>
+  
+  <Step title="Set Content-Security-Policy">
+    ```javascript
+    app.use(helmet.contentSecurityPolicy({
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "trusted-cdn.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"]
+      }
+    }));
+    ```
+  </Step>
+</Steps>
+
+## Use HTTPS
+
+<Warning>
+  Always use HTTPS in production to encrypt data in transit.
+</Warning>
+
+```javascript
+const https = require('https');
+const fs = require('fs');
+const express = require('express');
+const app = express();
+
+const options = {
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem')
+};
+
+https.createServer(options, app).listen(443);
+```
+
+For production, use a reverse proxy (nginx, Apache) or service (Cloudflare, AWS) to handle HTTPS.
+
+## Secure Session Management
+
+<CodeGroup>
+```javascript Production Session Config
+const session = require('express-session');
+const RedisStore = require('connect-redis').default;
+const { createClient } = require('redis');
+
+const redisClient = createClient();
+redisClient.connect().catch(console.error);
+
+app.use(session({
+  store: new RedisStore({ client: redisClient }),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: true,      // Require HTTPS
+    httpOnly: true,    // Prevent client-side access
+    maxAge: 3600000,   // 1 hour
+    sameSite: 'strict' // CSRF protection
+  }
+}));
+```
+
+```javascript Development Session Config
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Allow HTTP in development
+    httpOnly: true,
+    maxAge: 3600000
+  }
+}));
+```
+</CodeGroup>
+
+<Tip>
+  Use a strong, random session secret and store it in environment variables. Never commit secrets to version control.
+</Tip>
+
+## Rate Limiting
+
+Prevent brute-force attacks with rate limiting:
+
+```bash
+npm install express-rate-limit
+```
+
+```javascript
+const rateLimit = require('express-rate-limit');
+
+// General rate limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP'
+});
+
+app.use('/api/', limiter);
+
+// Stricter rate limit for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many login attempts'
+});
+
+app.post('/login', authLimiter, (req, res) => {
+  // Handle login
+});
+```
+
+## Prevent NoSQL Injection
+
+Sanitize MongoDB queries:
+
+```bash
+npm install express-mongo-sanitize
+```
+
+```javascript
+const mongoSanitize = require('express-mongo-sanitize');
+
+app.use(mongoSanitize());
+```
+
+## CSRF Protection
+
+Protect against Cross-Site Request Forgery:
+
+```bash
+npm install csurf
+```
+
+```javascript
+const csrf = require('csurf');
+const csrfProtection = csrf({ cookie: true });
+
+app.use(csrfProtection);
+
+app.get('/form', (req, res) => {
+  res.render('form', { csrfToken: req.csrfToken() });
+});
+
+app.post('/submit', (req, res) => {
+  // CSRF token automatically validated
+  res.send('Success');
+});
+```
+
+```html
+<form method="POST" action="/submit">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
+  <button type="submit">Submit</button>
+</form>
+```
+
+## Secure Password Storage
+
+Never store passwords in plain text:
+
+```bash
+npm install bcrypt
+```
+
+```javascript
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+// Hash password
+app.post('/register', async (req, res) => {
+  const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+  // Store hashedPassword in database
+});
+
+// Verify password
+app.post('/login', async (req, res) => {
+  const user = await User.findOne({ email: req.body.email });
+  const match = await bcrypt.compare(req.body.password, user.password);
+  
+  if (match) {
+    // Password correct
+  } else {
+    // Password incorrect
+  }
+});
+```
+
+## Environment Variables
+
+<Warning>
+  Never commit secrets or API keys to version control. Use environment variables.
+</Warning>
+
+```bash
+npm install dotenv
+```
+
+```javascript
+require('dotenv').config();
+
+const dbPassword = process.env.DB_PASSWORD;
+const apiKey = process.env.API_KEY;
+const sessionSecret = process.env.SESSION_SECRET;
+```
+
+```.env
+DB_PASSWORD=your_secure_password
+API_KEY=your_api_key
+SESSION_SECRET=your_session_secret
+NODE_ENV=production
+```
+
+## Input Validation
+
+Validate all user input:
+
+```javascript
+const { body, param, validationResult } = require('express-validator');
+
+app.post('/user/:id',
+  param('id').isInt(),
+  body('email').isEmail().normalizeEmail(),
+  body('age').optional().isInt({ min: 0, max: 120 }),
+  body('username').trim().isLength({ min: 3, max: 30 }).isAlphanumeric(),
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    // Process validated data
+  }
+);
+```
+
+## Dependency Security
+
+<Steps>
+  <Step title="Audit dependencies regularly">
+    ```bash
+    npm audit
+    npm audit fix
+    ```
+  </Step>
+  
+  <Step title="Keep dependencies updated">
+    ```bash
+    npm outdated
+    npm update
+    ```
+  </Step>
+  
+  <Step title="Use automated tools">
+    ```bash
+    npm install -g snyk
+    snyk test
+    ```
+  </Step>
+</Steps>
+
+## Additional Security Headers
+
+```javascript
+const express = require('express');
+const app = express();
+
+// Disable X-Powered-By header
+app.disable('x-powered-by');
+
+// Or use Helmet to set multiple headers
+const helmet = require('helmet');
+app.use(helmet());
+```
+
+## Security Checklist
+
+<Accordion title="Essential Security Measures">
+  - [ ] Use HTTPS in production
+  - [ ] Use Helmet for security headers
+  - [ ] Validate and sanitize all input
+  - [ ] Use parameterized queries
+  - [ ] Hash passwords with bcrypt
+  - [ ] Implement rate limiting
+  - [ ] Use CSRF protection for forms
+  - [ ] Set secure session cookies
+  - [ ] Keep dependencies updated
+  - [ ] Use environment variables for secrets
+</Accordion>
+
+<Accordion title="Additional Hardening">
+  - [ ] Implement Content Security Policy
+  - [ ] Use SameSite cookies
+  - [ ] Implement proper authentication
+  - [ ] Add request size limits
+  - [ ] Implement proper error handling
+  - [ ] Log security events
+  - [ ] Use security linters (eslint-plugin-security)
+  - [ ] Implement account lockout after failed attempts
+</Accordion>
+
+## Related
+
+- [Production Best Practices](/guides/production-best-practices)
+- [Error Handling](/guides/error-handling)
+- [Database Integration](/guides/database-integration)

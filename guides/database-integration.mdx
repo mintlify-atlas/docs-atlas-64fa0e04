@@ -1,0 +1,295 @@
+---
+title: Database Integration
+description: Learn how to integrate databases with Express applications
+---
+
+Express apps can use any database supported by Node.js. This guide covers common database integration patterns.
+
+## Popular Database Options
+
+<CardGroup cols={2}>
+  <Card title="MongoDB" icon="database">
+    NoSQL document database, popular with Node.js
+  </Card>
+  <Card title="PostgreSQL" icon="database">
+    Powerful open-source relational database
+  </Card>
+  <Card title="MySQL" icon="database">
+    Popular open-source relational database
+  </Card>
+  <Card title="Redis" icon="database">
+    In-memory data store for caching and sessions
+  </Card>
+</CardGroup>
+
+## MongoDB with Mongoose
+
+Mongoose is an Object Data Modeling (ODM) library for MongoDB.
+
+<Steps>
+  <Step title="Install Mongoose">
+    ```bash
+    npm install mongoose
+    ```
+  </Step>
+  
+  <Step title="Connect to MongoDB">
+    ```javascript
+    const express = require('express');
+    const mongoose = require('mongoose');
+    
+    const app = express();
+    
+    mongoose.connect('mongodb://localhost/myapp', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+    
+    const db = mongoose.connection;
+    db.on('error', console.error.bind(console, 'connection error:'));
+    db.once('open', function() {
+      console.log('Connected to MongoDB');
+    });
+    ```
+  </Step>
+  
+  <Step title="Define Models">
+    ```javascript
+    const userSchema = new mongoose.Schema({
+      name: String,
+      email: { type: String, unique: true },
+      created: { type: Date, default: Date.now }
+    });
+    
+    const User = mongoose.model('User', userSchema);
+    ```
+  </Step>
+  
+  <Step title="Use in Routes">
+    ```javascript
+    app.get('/users', async (req, res, next) => {
+      try {
+        const users = await User.find();
+        res.json(users);
+      } catch (err) {
+        next(err);
+      }
+    });
+    
+    app.post('/users', async (req, res, next) => {
+      try {
+        const user = new User(req.body);
+        await user.save();
+        res.status(201).json(user);
+      } catch (err) {
+        next(err);
+      }
+    });
+    ```
+  </Step>
+</Steps>
+
+## PostgreSQL with node-postgres
+
+<Steps>
+  <Step title="Install pg">
+    ```bash
+    npm install pg
+    ```
+  </Step>
+  
+  <Step title="Create Connection Pool">
+    ```javascript
+    const { Pool } = require('pg');
+    
+    const pool = new Pool({
+      user: 'dbuser',
+      host: 'localhost',
+      database: 'myapp',
+      password: 'password',
+      port: 5432,
+    });
+    ```
+  </Step>
+  
+  <Step title="Query the Database">
+    ```javascript
+    app.get('/users/:id', async (req, res, next) => {
+      try {
+        const { rows } = await pool.query(
+          'SELECT * FROM users WHERE id = $1',
+          [req.params.id]
+        );
+        
+        if (rows.length === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json(rows[0]);
+      } catch (err) {
+        next(err);
+      }
+    });
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Always use parameterized queries to prevent SQL injection attacks. Never concatenate user input directly into SQL strings.
+</Warning>
+
+## MySQL with mysql2
+
+```javascript
+const mysql = require('mysql2/promise');
+
+// Create connection pool
+const pool = mysql.createPool({
+  host: 'localhost',
+  user: 'root',
+  database: 'myapp',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+app.get('/products', async (req, res, next) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM products');
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+## Redis for Sessions
+
+Use Redis to store session data:
+
+```javascript
+const session = require('express-session');
+const RedisStore = require('connect-redis').default;
+const { createClient } = require('redis');
+
+// Create Redis client
+const redisClient = createClient({
+  url: 'redis://localhost:6379'
+});
+
+redisClient.connect().catch(console.error);
+
+// Configure session middleware
+app.use(session({
+  store: new RedisStore({ client: redisClient }),
+  secret: 'keyboard cat',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 86400000 }
+}));
+
+app.get('/', (req, res) => {
+  if (req.session.views) {
+    req.session.views++;
+  } else {
+    req.session.views = 1;
+  }
+  res.send(`Views: ${req.session.views}`);
+});
+```
+
+## ORMs and Query Builders
+
+<Accordion title="Sequelize (SQL ORM)">
+  ```javascript
+  const { Sequelize, DataTypes } = require('sequelize');
+  
+  const sequelize = new Sequelize('database', 'username', 'password', {
+    host: 'localhost',
+    dialect: 'postgres'
+  });
+  
+  const User = sequelize.define('User', {
+    name: DataTypes.STRING,
+    email: DataTypes.STRING
+  });
+  
+  await sequelize.sync();
+  
+  app.get('/users', async (req, res) => {
+    const users = await User.findAll();
+    res.json(users);
+  });
+  ```
+</Accordion>
+
+<Accordion title="Knex.js (Query Builder)">
+  ```javascript
+  const knex = require('knex')({
+    client: 'pg',
+    connection: {
+      host: 'localhost',
+      user: 'your_user',
+      password: 'your_password',
+      database: 'myapp'
+    }
+  });
+  
+  app.get('/users', async (req, res) => {
+    const users = await knex('users').select('*');
+    res.json(users);
+  });
+  ```
+</Accordion>
+
+<Accordion title="Prisma (Modern ORM)">
+  ```javascript
+  const { PrismaClient } = require('@prisma/client');
+  const prisma = new PrismaClient();
+  
+  app.get('/users', async (req, res) => {
+    const users = await prisma.user.findMany();
+    res.json(users);
+  });
+  
+  app.post('/users', async (req, res) => {
+    const user = await prisma.user.create({
+      data: req.body
+    });
+    res.json(user);
+  });
+  ```
+</Accordion>
+
+## Best Practices
+
+<Tip>
+  Use connection pooling to reuse database connections and improve performance.
+</Tip>
+
+- **Use environment variables** for database credentials
+- **Handle connection errors** gracefully
+- **Close connections** when shutting down the app
+- **Use migrations** to manage schema changes
+- **Validate input** before database operations
+- **Use transactions** for operations that must succeed or fail together
+- **Index frequently queried fields** for better performance
+
+## Connection Management
+
+```javascript
+const mongoose = require('mongoose');
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  console.log('Database connection closed');
+  process.exit(0);
+});
+```
+
+## Related
+
+- [Security Best Practices](/guides/security)
+- [Production Best Practices](/guides/production-best-practices)
+- [Error Handling](/guides/error-handling)

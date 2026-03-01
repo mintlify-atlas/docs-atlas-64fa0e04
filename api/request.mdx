@@ -1,0 +1,584 @@
+---
+title: Request
+description: Complete API reference for the Express Request object
+---
+
+The `req` object represents the HTTP request and has properties for the request query string, parameters, body, HTTP headers, and more.
+
+```javascript
+app.get('/user/:id', (req, res) => {
+  res.send(`User ${req.params.id}`);
+});
+```
+
+By convention, the object is always referred to as `req` (and the HTTP response is `res`), but its actual name is determined by the parameters to the callback function.
+
+## Properties
+
+### req.app
+
+Reference to the Express application instance.
+
+<ResponseField name="req.app" type="Application">
+  The Express application instance
+</ResponseField>
+
+```javascript
+app.get('/user', (req, res) => {
+  console.log(req.app.get('title')); // Access app settings
+});
+```
+
+### req.baseUrl
+
+The URL path on which a router instance was mounted.
+
+<ResponseField name="req.baseUrl" type="string">
+  The base URL path
+</ResponseField>
+
+```javascript
+const router = express.Router();
+
+router.get('/user/:id', (req, res) => {
+  console.log(req.baseUrl); // "/api"
+});
+
+app.use('/api', router);
+```
+
+### req.body
+
+Contains key-value pairs of data submitted in the request body. By default, it is `undefined` and is populated when you use body-parsing middleware such as `express.json()` or `express.urlencoded()`.
+
+<ResponseField name="req.body" type="object">
+  The parsed request body
+</ResponseField>
+
+```javascript
+app.use(express.json());
+
+app.post('/profile', (req, res) => {
+  console.log(req.body.name); // Access parsed JSON data
+  res.json(req.body);
+});
+```
+
+### req.cookies
+
+Contains cookies sent by the request. Requires cookie-parser middleware.
+
+<ResponseField name="req.cookies" type="object">
+  Object containing cookies
+</ResponseField>
+
+```javascript
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+app.get('/', (req, res) => {
+  console.log(req.cookies.name);
+});
+```
+
+### req.fresh
+
+Indicates whether the request is "fresh" based on the `Last-Modified` and/or `ETag` headers.
+
+<ResponseField name="req.fresh" type="boolean">
+  True if the request is fresh, false otherwise
+</ResponseField>
+
+```javascript
+app.get('/document', (req, res) => {
+  if (req.fresh) {
+    res.status(304).end();
+  } else {
+    res.send(document);
+  }
+});
+```
+
+### req.host
+
+Contains the hostname from the `Host` HTTP header. When the `trust proxy` setting trusts the socket address, the `X-Forwarded-Host` header field will be trusted.
+
+<ResponseField name="req.host" type="string">
+  The hostname including port if present
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.host); // "example.com:3000"
+});
+```
+
+### req.hostname
+
+Contains the hostname from the `Host` HTTP header without the port number.
+
+<ResponseField name="req.hostname" type="string">
+  The hostname without port
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.hostname); // "example.com"
+});
+```
+
+### req.ip
+
+Contains the remote IP address of the request. When the `trust proxy` setting trusts the socket address, this property will contain the value from the `X-Forwarded-For` header.
+
+<ResponseField name="req.ip" type="string">
+  The IP address of the client
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.ip); // "127.0.0.1"
+});
+```
+
+### req.ips
+
+When the `trust proxy` setting trusts the socket address, this property contains an array of IP addresses specified in the `X-Forwarded-For` request header.
+
+<ResponseField name="req.ips" type="array">
+  Array of IP addresses
+</ResponseField>
+
+```javascript
+app.set('trust proxy', true);
+
+app.get('/', (req, res) => {
+  console.log(req.ips); // ["client", "proxy1", "proxy2"]
+});
+```
+
+### req.method
+
+Contains the HTTP method of the request: GET, POST, PUT, DELETE, etc.
+
+<ResponseField name="req.method" type="string">
+  The HTTP method
+</ResponseField>
+
+```javascript
+app.use((req, res, next) => {
+  console.log(req.method); // "GET", "POST", etc.
+  next();
+});
+```
+
+### req.originalUrl
+
+This property retains the original request URL, allowing you to rewrite `req.url` freely for internal routing purposes.
+
+<ResponseField name="req.originalUrl" type="string">
+  The original request URL
+</ResponseField>
+
+```javascript
+app.use('/admin', (req, res, next) => {
+  console.log(req.originalUrl); // "/admin/new"
+  console.log(req.baseUrl);     // "/admin"
+  console.log(req.path);        // "/new"
+  next();
+});
+```
+
+### req.params
+
+An object containing properties mapped to named route parameters.
+
+<ResponseField name="req.params" type="object">
+  Object containing route parameters
+</ResponseField>
+
+```javascript
+// Route: /user/:id/:name
+app.get('/user/:id/:name', (req, res) => {
+  console.log(req.params.id);   // "42"
+  console.log(req.params.name); // "john"
+});
+
+// URL: /user/42/john
+```
+
+### req.path
+
+Contains the path part of the request URL.
+
+<ResponseField name="req.path" type="string">
+  The URL path
+</ResponseField>
+
+```javascript
+// URL: http://example.com/users?sort=desc
+app.get('/users', (req, res) => {
+  console.log(req.path); // "/users"
+});
+```
+
+### req.protocol
+
+Contains the request protocol string: either `http` or `https` when requested with TLS.
+
+<ResponseField name="req.protocol" type="string">
+  The protocol ("http" or "https")
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.protocol); // "https"
+});
+```
+
+### req.query
+
+An object containing a property for each query string parameter in the route.
+
+<ResponseField name="req.query" type="object">
+  Object containing parsed query string
+</ResponseField>
+
+```javascript
+// URL: /search?q=express&limit=10
+app.get('/search', (req, res) => {
+  console.log(req.query.q);     // "express"
+  console.log(req.query.limit); // "10"
+});
+```
+
+### req.res
+
+Reference to the response object.
+
+<ResponseField name="req.res" type="Response">
+  The Express response object
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.res === res); // true
+});
+```
+
+### req.route
+
+Contains the currently matched route as a string.
+
+<ResponseField name="req.route" type="object">
+  The currently matched route
+</ResponseField>
+
+```javascript
+app.get('/user/:id', (req, res) => {
+  console.log(req.route.path); // "/user/:id"
+});
+```
+
+### req.secure
+
+A boolean indicating whether the connection is over HTTPS.
+
+<ResponseField name="req.secure" type="boolean">
+  True if the request is over HTTPS
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  if (req.secure) {
+    res.send('Secure connection');
+  } else {
+    res.redirect('https://' + req.headers.host + req.url);
+  }
+});
+```
+
+### req.signedCookies
+
+Contains signed cookies sent by the request, unsigned and ready for use. Requires cookie-parser middleware.
+
+<ResponseField name="req.signedCookies" type="object">
+  Object containing signed cookies
+</ResponseField>
+
+```javascript
+const cookieParser = require('cookie-parser');
+app.use(cookieParser('secret'));
+
+app.get('/', (req, res) => {
+  console.log(req.signedCookies.user);
+});
+```
+
+### req.stale
+
+Indicates whether the request is "stale" (opposite of `req.fresh`).
+
+<ResponseField name="req.stale" type="boolean">
+  True if the request is stale
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.stale); // true or false
+});
+```
+
+### req.subdomains
+
+An array of subdomains in the domain name of the request.
+
+<ResponseField name="req.subdomains" type="array">
+  Array of subdomains
+</ResponseField>
+
+```javascript
+// Host: "tobi.ferrets.example.com"
+app.get('/', (req, res) => {
+  console.log(req.subdomains); // ["ferrets", "tobi"]
+});
+```
+
+### req.xhr
+
+A boolean indicating whether the request was issued by an `XMLHttpRequest` (checks if `X-Requested-With` header is `XMLHttpRequest`).
+
+<ResponseField name="req.xhr" type="boolean">
+  True if the request is an AJAX request
+</ResponseField>
+
+```javascript
+app.get('/data', (req, res) => {
+  if (req.xhr) {
+    res.json({ data: 'AJAX response' });
+  } else {
+    res.send('<html>...</html>');
+  }
+});
+```
+
+## Methods
+
+### req.accepts(types)
+
+Checks if the specified content types are acceptable based on the request's `Accept` HTTP header. Returns the best match or `false` if none are acceptable.
+
+<ParamField name="types" type="string | array" required>
+  MIME type(s), extension(s), or array of types/extensions
+</ParamField>
+
+<ParamField name="returns" type="string | array | false">
+  The best match, or false if no match
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  // Accept: text/html
+  req.accepts('html');              // "html"
+  req.accepts('text/html');         // "text/html"
+  req.accepts(['json', 'text']);    // "text"
+  req.accepts('application/json');  // false
+});
+```
+
+### req.acceptsCharsets(charset [, ...])
+
+Returns the first accepted charset from the specified charsets based on the request's `Accept-Charset` HTTP header.
+
+<ParamField name="charset" type="string" required>
+  One or more charset strings
+</ParamField>
+
+<ParamField name="returns" type="string | false">
+  The first accepted charset, or false
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.acceptsCharsets('utf-8', 'iso-8859-1'); // "utf-8"
+});
+```
+
+### req.acceptsEncodings(encoding [, ...])
+
+Returns the first accepted encoding from the specified encodings based on the request's `Accept-Encoding` HTTP header.
+
+<ParamField name="encoding" type="string" required>
+  One or more encoding strings
+</ParamField>
+
+<ParamField name="returns" type="string | false">
+  The first accepted encoding, or false
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.acceptsEncodings('gzip', 'deflate'); // "gzip"
+});
+```
+
+### req.acceptsLanguages(lang [, ...])
+
+Returns the first accepted language from the specified languages based on the request's `Accept-Language` HTTP header.
+
+<ParamField name="lang" type="string" required>
+  One or more language strings
+</ParamField>
+
+<ParamField name="returns" type="string | false">
+  The first accepted language, or false
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.acceptsLanguages('en', 'es', 'fr'); // "en"
+});
+```
+
+### req.get(field)
+
+Returns the specified HTTP request header field (case-insensitive match). The `Referrer` and `Referer` fields are interchangeable.
+
+<ParamField name="field" type="string" required>
+  The header field name
+</ParamField>
+
+<ParamField name="returns" type="string">
+  The header value
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.get('Content-Type');  // "text/plain"
+  req.get('content-type');  // "text/plain"
+  req.get('Referrer');      // "http://example.com"
+  req.get('Referer');       // "http://example.com"
+});
+```
+
+Alias: `req.header(field)`
+
+### req.header(field)
+
+Alias for `req.get(field)`.
+
+### req.is(type)
+
+Returns the matching content type if the incoming request's `Content-Type` HTTP header matches the MIME type specified. Returns `false` if there's no match.
+
+<ParamField name="type" type="string | array" required>
+  MIME type(s) or extension(s)
+</ParamField>
+
+<ParamField name="returns" type="string | false | null">
+  The matching type, false, or null
+</ParamField>
+
+```javascript
+app.post('/upload', (req, res) => {
+  // Content-Type: text/html; charset=utf-8
+  req.is('html');       // "html"
+  req.is('text/html');  // "text/html"
+  req.is('text/*');     // "text/*"
+  
+  // Content-Type: application/json
+  req.is('json');              // "json"
+  req.is('application/json');  // "application/json"
+  req.is('html');              // false
+});
+```
+
+### req.range(size[, options])
+
+Parses the `Range` header field, returning an array of ranges or an error code.
+
+<ParamField name="size" type="number" required>
+  Maximum size of the resource
+</ParamField>
+
+<ParamField name="options" type="object" optional>
+  Options object
+  
+  <Expandable title="options properties">
+    <ParamField name="combine" type="boolean" default={false}>
+      Combine overlapping and adjacent ranges
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField name="returns" type="array | number">
+  Array of ranges, -1 (unsatisfiable), -2 (malformed), or undefined (no Range header)
+</ParamField>
+
+```javascript
+app.get('/file', (req, res) => {
+  const range = req.range(1000);
+  
+  if (range === -1) {
+    res.status(416).send('Range not satisfiable');
+  } else if (range && range.type === 'bytes') {
+    // range[0].start, range[0].end
+    res.status(206).send(partialContent);
+  } else {
+    res.send(fullContent);
+  }
+});
+```
+
+## Complete Example
+
+```javascript
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.get('/user/:id', (req, res) => {
+  // Request properties
+  console.log('Method:', req.method);           // GET
+  console.log('Path:', req.path);               // /user/123
+  console.log('Original URL:', req.originalUrl); // /user/123?name=john
+  console.log('Protocol:', req.protocol);        // http or https
+  console.log('Secure:', req.secure);            // true or false
+  console.log('IP:', req.ip);                    // Client IP
+  console.log('Hostname:', req.hostname);        // example.com
+  
+  // Parameters and query
+  console.log('User ID:', req.params.id);       // 123
+  console.log('Query name:', req.query.name);   // john
+  
+  // Headers
+  console.log('Content-Type:', req.get('Content-Type'));
+  console.log('User-Agent:', req.get('User-Agent'));
+  
+  // Content negotiation
+  if (req.accepts('json')) {
+    res.json({ userId: req.params.id });
+  } else if (req.accepts('html')) {
+    res.send(`<html><body>User ${req.params.id}</body></html>`);
+  } else {
+    res.status(406).send('Not Acceptable');
+  }
+});
+
+app.post('/upload', (req, res) => {
+  // Check content type
+  if (req.is('application/json')) {
+    console.log('Received JSON:', req.body);
+    res.json({ success: true });
+  } else if (req.is('text/plain')) {
+    console.log('Received text:', req.body);
+    res.send('Text received');
+  } else {
+    res.status(415).send('Unsupported Media Type');
+  }
+});
+
+app.listen(3000);
+```

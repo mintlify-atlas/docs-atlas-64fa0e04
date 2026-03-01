@@ -1,0 +1,336 @@
+---
+title: express()
+description: The main Express module exports and factory function
+---
+
+The `express` module exports the Express factory function and various utility functions and constructors.
+
+## express()
+
+Creates an Express application. The `express()` function is the top-level function exported by the express module.
+
+```javascript
+const express = require('express');
+const app = express();
+```
+
+<ParamField name="returns" type="Function">
+  Returns an Express application instance that acts as a request handler function with signature `(req, res, next) => void`
+</ParamField>
+
+### Example
+
+```javascript
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+
+app.listen(3000);
+```
+
+## Exported Properties
+
+The express module exports several additional properties for creating routers, middleware, and accessing prototypes.
+
+### express.application
+
+The Application prototype, which is used to extend the app object.
+
+```javascript
+const express = require('express');
+const app = express.application;
+```
+
+### express.request
+
+The Request prototype, used to extend req objects.
+
+```javascript
+const express = require('express');
+const req = express.request;
+```
+
+### express.response
+
+The Response prototype, used to extend res objects.
+
+```javascript
+const express = require('express');
+const res = express.response;
+```
+
+## Exported Constructors
+
+### express.Router([options])
+
+Creates a new router object. A router behaves like middleware and can be used to organize routes.
+
+<ParamField name="options" type="object" optional>
+  Router options
+  
+  <Expandable title="options properties">
+    <ParamField name="caseSensitive" type="boolean" default={false}>
+      Enable case sensitivity for routes
+    </ParamField>
+    
+    <ParamField name="mergeParams" type="boolean" default={false}>
+      Preserve the req.params values from the parent router
+    </ParamField>
+    
+    <ParamField name="strict" type="boolean" default={false}>
+      Enable strict routing (treats "/foo" and "/foo/" differently)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField name="returns" type="Router">
+  A new Router instance
+</ParamField>
+
+#### Example
+
+```javascript
+const express = require('express');
+const router = express.Router();
+
+router.get('/users', (req, res) => {
+  res.send('Users list');
+});
+
+app.use('/api', router);
+```
+
+### express.Route
+
+Exposed Route constructor from the router module. Used internally by Express.
+
+## Exported Middleware
+
+Express exports several built-in middleware functions from external packages.
+
+### express.json([options])
+
+Middleware that parses incoming requests with JSON payloads. Based on body-parser.
+
+<ParamField name="options" type="object" optional>
+  JSON parser options (see body-parser documentation for full options)
+  
+  <Expandable title="Common options">
+    <ParamField name="inflate" type="boolean" default={true}>
+      Enable handling of deflated (compressed) bodies
+    </ParamField>
+    
+    <ParamField name="limit" type="string | number" default="100kb">
+      Maximum request body size
+    </ParamField>
+    
+    <ParamField name="strict" type="boolean" default={true}>
+      Only accept arrays and objects; when false will accept anything JSON.parse accepts
+    </ParamField>
+    
+    <ParamField name="type" type="string | function" default="application/json">
+      Content-Type to parse
+    </ParamField>
+    
+    <ParamField name="verify" type="function" optional>
+      Function called as verify(req, res, buf, encoding) for verification
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```javascript
+app.use(express.json());
+
+app.post('/api/users', (req, res) => {
+  console.log(req.body); // Access parsed JSON
+  res.json({ received: true });
+});
+```
+
+### express.urlencoded([options])
+
+Middleware that parses incoming requests with URL-encoded payloads. Based on body-parser.
+
+<ParamField name="options" type="object" optional>
+  URL-encoded parser options
+  
+  <Expandable title="Common options">
+    <ParamField name="extended" type="boolean" default={true}>
+      Use qs library (true) or querystring library (false) for parsing
+    </ParamField>
+    
+    <ParamField name="inflate" type="boolean" default={true}>
+      Enable handling of deflated (compressed) bodies
+    </ParamField>
+    
+    <ParamField name="limit" type="string | number" default="100kb">
+      Maximum request body size
+    </ParamField>
+    
+    <ParamField name="type" type="string | function" default="application/x-www-form-urlencoded">
+      Content-Type to parse
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```javascript
+app.use(express.urlencoded({ extended: true }));
+
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  res.send(`Login attempt for ${username}`);
+});
+```
+
+### express.raw([options])
+
+Middleware that parses incoming request payloads into a Buffer. Based on body-parser.
+
+<ParamField name="options" type="object" optional>
+  Raw parser options
+  
+  <Expandable title="Common options">
+    <ParamField name="inflate" type="boolean" default={true}>
+      Enable handling of deflated (compressed) bodies
+    </ParamField>
+    
+    <ParamField name="limit" type="string | number" default="100kb">
+      Maximum request body size
+    </ParamField>
+    
+    <ParamField name="type" type="string | function" default="application/octet-stream">
+      Content-Type to parse
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```javascript
+app.use(express.raw({ type: 'application/octet-stream' }));
+
+app.post('/upload', (req, res) => {
+  console.log(req.body); // Buffer
+  res.send('Received');
+});
+```
+
+### express.text([options])
+
+Middleware that parses incoming request payloads into a string. Based on body-parser.
+
+<ParamField name="options" type="object" optional>
+  Text parser options
+  
+  <Expandable title="Common options">
+    <ParamField name="defaultCharset" type="string" default="utf-8">
+      Default character set if not specified in Content-Type
+    </ParamField>
+    
+    <ParamField name="inflate" type="boolean" default={true}>
+      Enable handling of deflated (compressed) bodies
+    </ParamField>
+    
+    <ParamField name="limit" type="string | number" default="100kb">
+      Maximum request body size
+    </ParamField>
+    
+    <ParamField name="type" type="string | function" default="text/plain">
+      Content-Type to parse
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```javascript
+app.use(express.text());
+
+app.post('/notes', (req, res) => {
+  console.log(req.body); // String
+  res.send('Note saved');
+});
+```
+
+### express.static(root, [options])
+
+Serves static files from the specified directory. Based on serve-static.
+
+<ParamField name="root" type="string" required>
+  Root directory from which to serve static assets
+</ParamField>
+
+<ParamField name="options" type="object" optional>
+  Static file serving options
+  
+  <Expandable title="Common options">
+    <ParamField name="dotfiles" type="string" default="ignore">
+      How to handle dotfiles: "allow", "deny", or "ignore"
+    </ParamField>
+    
+    <ParamField name="etag" type="boolean" default={true}>
+      Enable or disable etag generation
+    </ParamField>
+    
+    <ParamField name="extensions" type="array" optional>
+      File extensions to try when a file is not found (e.g., ['html', 'htm'])
+    </ParamField>
+    
+    <ParamField name="index" type="string | false" default="index.html">
+      Default directory index file or false to disable
+    </ParamField>
+    
+    <ParamField name="maxAge" type="string | number" default={0}>
+      Cache-Control max-age in milliseconds or string
+    </ParamField>
+    
+    <ParamField name="redirect" type="boolean" default={true}>
+      Redirect to trailing "/" when pathname is a directory
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### Example
+
+```javascript
+app.use(express.static('public'));
+app.use('/static', express.static('public'));
+
+// Serve with options
+app.use(express.static('public', {
+  maxAge: '1d',
+  dotfiles: 'ignore',
+  index: 'index.html'
+}));
+```
+
+## Complete Example
+
+```javascript
+const express = require('express');
+const app = express();
+
+// Use built-in middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
+
+// Create a router
+const router = express.Router();
+router.get('/users', (req, res) => {
+  res.json([{ id: 1, name: 'John' }]);
+});
+
+app.use('/api', router);
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+```

@@ -1,0 +1,270 @@
+---
+title: Serving Static Files
+description: Learn how to serve static files like images, CSS, and JavaScript in Express applications
+---
+
+Express provides the `express.static` built-in middleware function to serve static files such as images, CSS files, and JavaScript files.
+
+## Basic Usage
+
+Pass the name of the directory containing your static assets to `express.static`:
+
+```javascript
+const express = require('express');
+const path = require('path');
+const app = express();
+
+app.use(express.static(path.join(__dirname, 'public')));
+```
+
+Now you can load files in the `public` directory:
+
+```
+http://localhost:3000/images/logo.png
+http://localhost:3000/css/style.css
+http://localhost:3000/js/app.js
+```
+
+<Info>
+  Express looks up files relative to the static directory, so the directory name is not part of the URL.
+</Info>
+
+## Multiple Static Directories
+
+You can use `express.static` multiple times to serve files from different directories:
+
+```javascript
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'files')));
+app.use(express.static(path.join(__dirname, 'uploads')));
+```
+
+<Warning>
+  Express looks up files in the order you set the static directories. If a file exists in multiple directories, the first match is served.
+</Warning>
+
+## Virtual Path Prefix
+
+Create a virtual path prefix (where the path doesn't actually exist in the file system) by specifying a mount path:
+
+```javascript
+app.use('/static', express.static(path.join(__dirname, 'public')));
+```
+
+Now files are available under the `/static` prefix:
+
+```
+http://localhost:3000/static/images/logo.png
+http://localhost:3000/static/css/style.css
+http://localhost:3000/static/js/app.js
+```
+
+<Tip>
+  Use a virtual path prefix to organize your URLs or serve the same files under different paths.
+</Tip>
+
+## Serving Specific File Types
+
+Serve files from a specific subdirectory:
+
+```javascript
+// Serve CSS files directly from /public/css
+app.use(express.static(path.join(__dirname, 'public', 'css')));
+```
+
+Now `style.css` is available at:
+
+```
+http://localhost:3000/style.css
+```
+
+## Complete Example
+
+<CodeGroup>
+```javascript Basic Setup
+const express = require('express');
+const path = require('path');
+const app = express();
+
+// Serve files from 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+```
+
+```javascript With Virtual Path
+const express = require('express');
+const path = require('path');
+const app = express();
+
+// Files available at /static/*
+app.use('/static', express.static(path.join(__dirname, 'public')));
+
+app.listen(3000);
+```
+
+```javascript Multiple Directories
+const express = require('express');
+const path = require('path');
+const app = express();
+
+// Primary static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Additional static files with prefix
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// CSS files directly accessible
+app.use(express.static(path.join(__dirname, 'public', 'css')));
+
+app.listen(3000);
+```
+</CodeGroup>
+
+## Directory Structure
+
+Typical project structure for static files:
+
+```
+project/
+├── app.js
+└── public/
+    ├── css/
+    │   └── style.css
+    ├── js/
+    │   └── app.js
+    ├── images/
+    │   ├── logo.png
+    │   └── background.jpg
+    └── index.html
+```
+
+## Configuration Options
+
+Customize the behavior of `express.static` with options:
+
+<Accordion title="Enable directory listings (not recommended)">
+  ```javascript
+  app.use(express.static('public', {
+    index: false,
+    dotfiles: 'ignore'
+  }));
+  ```
+</Accordion>
+
+<Accordion title="Set cache control headers">
+  ```javascript
+  app.use(express.static('public', {
+    maxAge: '1d',
+    etag: true
+  }));
+  ```
+</Accordion>
+
+<Accordion title="Custom index files">
+  ```javascript
+  app.use(express.static('public', {
+    index: ['index.html', 'index.htm', 'default.html']
+  }));
+  ```
+</Accordion>
+
+<Accordion title="Set custom headers">
+  ```javascript
+  app.use(express.static('public', {
+    setHeaders: (res, path, stat) => {
+      res.set('X-Custom-Header', 'value');
+    }
+  }));
+  ```
+</Accordion>
+
+## Absolute Paths
+
+<Warning>
+  Always use absolute paths with `express.static` to avoid issues when running your app from different directories:
+</Warning>
+
+```javascript
+// Good - uses absolute path
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Bad - uses relative path (may fail)
+app.use(express.static('public'));
+```
+
+## Caching in Production
+
+For production, enable caching to improve performance:
+
+```javascript
+const options = {
+  maxAge: app.get('env') === 'production' ? '1y' : 0,
+  etag: true,
+  lastModified: true
+};
+
+app.use(express.static(path.join(__dirname, 'public'), options));
+```
+
+<Tip>
+  In production, consider using a CDN or reverse proxy (like nginx) to serve static files for better performance.
+</Tip>
+
+## Security Considerations
+
+- **Don't serve sensitive files**: Never put sensitive files in your static directory
+- **Use dotfiles option**: Prevent serving hidden files with `dotfiles: 'ignore'`
+- **Limit directory access**: Only serve the specific directories you need
+- **Validate file uploads**: If serving user-uploaded files, validate and sanitize them first
+
+```javascript
+app.use(express.static('public', {
+  dotfiles: 'ignore',
+  index: false,
+  extensions: ['html', 'htm']
+}));
+```
+
+## Combining with Routes
+
+<Info>
+  Static middleware is typically placed before route handlers. Files matching static routes take precedence over route handlers.
+</Info>
+
+```javascript
+const express = require('express');
+const path = require('path');
+const app = express();
+
+// Static files first
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Then routes
+app.get('/api/users', (req, res) => {
+  res.json({ users: [] });
+});
+
+// 404 handler last
+app.use((req, res) => {
+  res.status(404).send('Not found');
+});
+```
+
+## Best Practices
+
+- Use absolute paths with `path.join(__dirname, 'public')`
+- Enable caching in production with `maxAge` option
+- Use virtual paths to organize URLs
+- Consider using a CDN for static assets in production
+- Use nginx or another reverse proxy to serve static files at scale
+- Compress static files with middleware like `compression`
+- Set appropriate cache headers for different file types
+
+## Related
+
+- [Using Template Engines](/guides/template-engines)
+- [Production Best Practices](/guides/production-best-practices)
+- [Security Best Practices](/guides/security)

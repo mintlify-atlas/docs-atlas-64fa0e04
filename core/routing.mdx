@@ -1,0 +1,443 @@
+---
+title: Routing
+description: Routing refers to how an application's endpoints (URIs) respond to client requests. Learn about route methods, route paths, route parameters, and route handlers.
+---
+
+## Overview
+
+Routing determines how an application responds to a client request to a particular endpoint, which is a URI (or path) and a specific HTTP request method (GET, POST, etc.).
+
+Each route can have one or more handler functions, which are executed when the route is matched.
+
+## Basic Routing
+
+Route definition takes the following structure:
+
+```javascript
+app.METHOD(PATH, HANDLER)
+```
+
+Where:
+- `app` is an instance of Express
+- `METHOD` is an HTTP request method (in lowercase)
+- `PATH` is a path on the server
+- `HANDLER` is the function executed when the route is matched
+
+<Tabs>
+  <Tab title="Simple Route">
+    ```javascript
+    const express = require('express');
+    const app = express();
+
+    app.get('/', (req, res) => {
+      res.send('Hello World');
+    });
+
+    app.listen(3000);
+    ```
+  </Tab>
+  <Tab title="Multiple Routes">
+    ```javascript
+    app.get('/', (req, res) => {
+      res.send('GET request to homepage');
+    });
+
+    app.post('/', (req, res) => {
+      res.send('POST request to homepage');
+    });
+
+    app.put('/user', (req, res) => {
+      res.send('PUT request to /user');
+    });
+
+    app.delete('/user', (req, res) => {
+      res.send('DELETE request to /user');
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Route Methods
+
+Express supports all HTTP request methods. The most commonly used methods are:
+
+- `app.get()` - Handle GET requests
+- `app.post()` - Handle POST requests
+- `app.put()` - Handle PUT requests
+- `app.delete()` - Handle DELETE requests
+- `app.patch()` - Handle PATCH requests
+
+Other supported methods include:
+
+- `app.head()`
+- `app.options()`
+- `app.connect()`
+- `app.trace()`
+- `app.checkout()`
+- `app.copy()`
+- `app.lock()`
+- `app.merge()`
+- `app.mkactivity()`
+- `app.mkcol()`
+- `app.move()`
+- `app.notify()`
+- `app.propfind()`
+- `app.proppatch()`
+- `app.purge()`
+- `app.report()`
+- `app.search()`
+- `app.subscribe()`
+- `app.unlock()`
+- `app.unsubscribe()`
+
+### app.all()
+
+The `app.all()` method is used to load middleware for all HTTP request methods on a path:
+
+```javascript
+app.all('/secret', (req, res, next) => {
+  console.log('Accessing the secret section...');
+  next(); // pass control to the next handler
+});
+```
+
+## Route Paths
+
+Route paths, in combination with a request method, define the endpoints at which requests can be made. Route paths can be strings, string patterns, or regular expressions.
+
+<Note>
+  Express uses `path-to-regexp` internally for matching route paths.
+</Note>
+
+### String Patterns
+
+<Tabs>
+  <Tab title="Exact Match">
+    ```javascript
+    // Matches requests to /about
+    app.get('/about', (req, res) => {
+      res.send('about');
+    });
+    ```
+  </Tab>
+  <Tab title="With Hyphen">
+    ```javascript
+    // Matches requests to /about-us
+    app.get('/about-us', (req, res) => {
+      res.send('about us');
+    });
+    ```
+  </Tab>
+  <Tab title="Query String">
+    ```javascript
+    // Matches /books?sort=author
+    // Query strings are not part of the route path
+    app.get('/books', (req, res) => {
+      res.send(`Books sorted by: ${req.query.sort}`);
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Pattern Matching
+
+Express route paths support pattern matching characters:
+
+- `?` - The preceding character is optional
+- `+` - The preceding character can occur one or more times
+- `*` - Wildcard, matches any characters
+- `()` - Grouping
+
+<Tabs>
+  <Tab title="Optional Character">
+    ```javascript
+    // Matches /ab and /acd
+    app.get('/ab?cd', (req, res) => {
+      res.send('ab?cd');
+    });
+    ```
+  </Tab>
+  <Tab title="Repeating Character">
+    ```javascript
+    // Matches /ab, /abb, /abbb, etc.
+    app.get('/ab+cd', (req, res) => {
+      res.send('ab+cd');
+    });
+    ```
+  </Tab>
+  <Tab title="Wildcard">
+    ```javascript
+    // Matches /abcd, /abxcd, /abRANDOMcd, /ab123cd, etc.
+    app.get('/ab*cd', (req, res) => {
+      res.send('ab*cd');
+    });
+    ```
+  </Tab>
+  <Tab title="Grouping">
+    ```javascript
+    // Matches /abe and /abcde
+    app.get('/ab(cd)?e', (req, res) => {
+      res.send('ab(cd)?e');
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Regular Expressions
+
+For more complex matching, use regular expressions:
+
+```javascript
+// Matches anything with an 'a' in the route name
+app.get(/a/, (req, res) => {
+  res.send('/a/');
+});
+
+// Matches butterfly and dragonfly, but not butterflyman
+app.get(/.*fly$/, (req, res) => {
+  res.send('/.*fly$/');
+});
+```
+
+## Route Parameters
+
+Route parameters are named URL segments that capture values at their position in the URL. The captured values are stored in `req.params`.
+
+```javascript
+app.get('/users/:userId/books/:bookId', (req, res) => {
+  res.send(req.params);
+});
+```
+
+**Request:** `GET /users/34/books/8989`
+
+**Response:** 
+```json
+{
+  "userId": "34",
+  "bookId": "8989"
+}
+```
+
+### Parameter Patterns
+
+You can use hyphens and dots in parameter names:
+
+```javascript
+// Matches /flights/LAX-SFO
+app.get('/flights/:from-:to', (req, res) => {
+  res.send(`Flying from ${req.params.from} to ${req.params.to}`);
+});
+
+// Matches /plantae/Prunus.persica
+app.get('/plantae/:genus.:species', (req, res) => {
+  res.send(`${req.params.genus}.${req.params.species}`);
+});
+```
+
+### Parameter Validation
+
+You can constrain parameters with regular expressions in parentheses:
+
+```javascript
+// Only matches if userId is numeric
+app.get('/user/:userId(\\d+)', (req, res) => {
+  res.send(`User ID: ${req.params.userId}`);
+});
+
+// Multiple constraints
+app.get('/user/:name([a-zA-Z]+)/:id(\\d+)', (req, res) => {
+  res.send(`Name: ${req.params.name}, ID: ${req.params.id}`);
+});
+```
+
+<Warning>
+  Remember to escape backslashes in strings: `\\d+` instead of `\d+`
+</Warning>
+
+## Route Handlers
+
+You can provide multiple callback functions that behave like middleware to handle a request. The only exception is that these callbacks might invoke `next('route')` to bypass the remaining route callbacks.
+
+### Single Callback
+
+```javascript
+app.get('/example', (req, res) => {
+  res.send('Single callback');
+});
+```
+
+### Multiple Callbacks
+
+```javascript
+app.get('/example', (req, res, next) => {
+  console.log('First callback');
+  next();
+}, (req, res) => {
+  res.send('Second callback');
+});
+```
+
+### Array of Callbacks
+
+```javascript
+const cb0 = (req, res, next) => {
+  console.log('CB0');
+  next();
+};
+
+const cb1 = (req, res, next) => {
+  console.log('CB1');
+  next();
+};
+
+const cb2 = (req, res) => {
+  res.send('Hello from C!');
+};
+
+app.get('/example', [cb0, cb1, cb2]);
+```
+
+### Mixed Callbacks
+
+Combine independent functions and arrays of functions:
+
+```javascript
+const cb0 = (req, res, next) => {
+  console.log('CB0');
+  next();
+};
+
+const cb1 = (req, res, next) => {
+  console.log('CB1');
+  next();
+};
+
+app.get('/example', [cb0, cb1], (req, res, next) => {
+  console.log('Response will be sent by the next function');
+  next();
+}, (req, res) => {
+  res.send('Hello from D!');
+});
+```
+
+## Chained Route Handlers
+
+You can create chainable route handlers using `app.route()`. This is useful for avoiding duplicate route names:
+
+```javascript
+app.route('/book')
+  .get((req, res) => {
+    res.send('Get a random book');
+  })
+  .post((req, res) => {
+    res.send('Add a book');
+  })
+  .put((req, res) => {
+    res.send('Update the book');
+  });
+```
+
+## Express Router
+
+Use `express.Router` to create modular, mountable route handlers. A Router instance is a complete middleware and routing system.
+
+### Creating a Router
+
+```javascript birds.js
+const express = require('express');
+const router = express.Router();
+
+// Middleware specific to this router
+router.use((req, res, next) => {
+  console.log('Time: ', Date.now());
+  next();
+});
+
+// Define routes
+router.get('/', (req, res) => {
+  res.send('Birds home page');
+});
+
+router.get('/about', (req, res) => {
+  res.send('About birds');
+});
+
+module.exports = router;
+```
+
+### Using the Router
+
+```javascript app.js
+const birds = require('./birds');
+
+app.use('/birds', birds);
+```
+
+Now:
+- `GET /birds` → "Birds home page"
+- `GET /birds/about` → "About birds"
+
+## Parameter Middleware
+
+Use `app.param()` to add callback triggers for route parameters:
+
+```javascript
+app.param('user', (req, res, next, id) => {
+  // Find user by ID and attach to req
+  User.find(id, (err, user) => {
+    if (err) {
+      return next(err);
+    } else if (!user) {
+      return next(new Error('failed to load user'));
+    }
+    req.user = user;
+    next();
+  });
+});
+
+app.get('/user/:user', (req, res) => {
+  res.send(`User: ${req.user.name}`);
+});
+
+app.get('/user/:user/edit', (req, res) => {
+  res.send(`Edit user: ${req.user.name}`);
+});
+```
+
+### Multiple Parameters
+
+```javascript
+app.param(['to', 'from'], (req, res, next, num, name) => {
+  req.params[name] = parseInt(num, 10);
+  if (isNaN(req.params[name])) {
+    return next(new Error('Failed to parse parameter'));
+  }
+  next();
+});
+
+app.get('/users/:from-:to', (req, res) => {
+  const { from, to } = req.params;
+  res.send(`Users from ${from} to ${to}`);
+});
+```
+
+## Response Methods
+
+The response object (`res`) methods send a response to the client and terminate the request-response cycle:
+
+| Method | Description |
+|--------|-------------|
+| `res.download()` | Prompt a file to be downloaded |
+| `res.end()` | End the response process |
+| `res.json()` | Send a JSON response |
+| `res.jsonp()` | Send a JSON response with JSONP support |
+| `res.redirect()` | Redirect a request |
+| `res.render()` | Render a view template |
+| `res.send()` | Send a response of various types |
+| `res.sendFile()` | Send a file as an octet stream |
+| `res.sendStatus()` | Set the response status code and send string representation |
+
+<Warning>
+  If none of these methods are called, the request will be left hanging and the client will time out.
+</Warning>

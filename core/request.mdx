@@ -1,0 +1,454 @@
+---
+title: Request
+description: The Request object represents the HTTP request and contains properties for the request query string, parameters, body, HTTP headers, and more.
+---
+
+## Overview
+
+The `req` object represents the HTTP request and has properties for the request query string, parameters, body, HTTP headers, etc. By convention, the object is always referred to as `req` (and the HTTP response is `res`).
+
+```javascript
+app.get('/user/:id', (req, res) => {
+  res.send(`User ${req.params.id}`);
+});
+```
+
+The request object is an enhanced version of Node's built-in `http.IncomingMessage` object.
+
+## Properties
+
+### req.app
+
+Reference to the Express application instance.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.app.get('env')); // development
+});
+```
+
+### req.baseUrl
+
+The URL path on which a router instance was mounted.
+
+```javascript
+const router = express.Router();
+router.get('/', (req, res) => {
+  console.log(req.baseUrl); // /admin
+});
+
+app.use('/admin', router);
+```
+
+### req.body
+
+Contains key-value pairs of data submitted in the request body. Requires body-parsing middleware like `express.json()` or `express.urlencoded()`.
+
+```javascript
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.post('/login', (req, res) => {
+  console.log(req.body.username);
+  console.log(req.body.password);
+  res.send('Login processed');
+});
+```
+
+<Warning>
+  `req.body` is `undefined` by default and is populated when you use body-parsing middleware.
+</Warning>
+
+### req.cookies
+
+Contains cookies sent by the request. Requires the `cookie-parser` middleware.
+
+```javascript
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+app.get('/', (req, res) => {
+  console.log(req.cookies.name);
+});
+```
+
+### req.fresh
+
+Indicates whether the request is "fresh" based on the `Last-Modified` and/or `ETag` headers. Returns `true` if the cached response is still fresh.
+
+```javascript
+app.get('/resource', (req, res) => {
+  console.log(req.fresh); // true or false
+});
+```
+
+### req.hostname
+
+Contains the hostname from the `Host` HTTP header.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.hostname); // "example.com"
+});
+```
+
+### req.ip
+
+Contains the remote IP address of the request. When `trust proxy` is enabled, it uses the value from `X-Forwarded-For` header.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.ip); // "127.0.0.1"
+});
+```
+
+### req.ips
+
+When `trust proxy` is set, contains an array of IP addresses from the `X-Forwarded-For` header, ordered from furthest to closest.
+
+```javascript
+app.enable('trust proxy');
+
+app.get('/', (req, res) => {
+  console.log(req.ips); // ["client", "proxy1", "proxy2"]
+});
+```
+
+### req.method
+
+Contains the HTTP method of the request: `GET`, `POST`, `PUT`, etc.
+
+```javascript
+app.use((req, res, next) => {
+  console.log(req.method); // "GET"
+  next();
+});
+```
+
+### req.originalUrl
+
+Contains the original request URL, preserving the original URL for internal redirects.
+
+```javascript
+app.use('/admin', (req, res, next) => {
+  console.log(req.originalUrl); // "/admin/users"
+  console.log(req.baseUrl); // "/admin"
+  console.log(req.path); // "/users"
+  next();
+});
+```
+
+### req.params
+
+Contains route parameters (named URL segments).
+
+```javascript
+app.get('/user/:userId/book/:bookId', (req, res) => {
+  console.log(req.params);
+  // { userId: "34", bookId: "8989" }
+  res.send(req.params);
+});
+```
+
+### req.path
+
+Contains the path part of the request URL.
+
+```javascript
+app.get('/user/:id', (req, res) => {
+  console.log(req.path); // "/user/123"
+});
+```
+
+### req.protocol
+
+Contains the request protocol string: either `http` or `https`. When `trust proxy` is enabled, uses the `X-Forwarded-Proto` header if present.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.protocol); // "https"
+});
+```
+
+### req.query
+
+Contains the parsed query string as an object.
+
+```javascript
+app.get('/search', (req, res) => {
+  // GET /search?q=express&sort=date
+  console.log(req.query.q); // "express"
+  console.log(req.query.sort); // "date"
+  res.send(`Searching for: ${req.query.q}`);
+});
+```
+
+<Note>
+  Query string parsing is controlled by the `query parser` application setting. Use `'extended'` for nested objects or `'simple'` for flat key-value pairs.
+</Note>
+
+### req.res
+
+Reference to the response object.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.res === res); // true
+});
+```
+
+### req.route
+
+Contains the currently matched route as a string.
+
+```javascript
+app.get('/user/:id', (req, res) => {
+  console.log(req.route);
+  // { path: '/user/:id', stack: [...], methods: { get: true } }
+});
+```
+
+### req.secure
+
+Returns `true` if the connection is secure (HTTPS). Equivalent to `req.protocol === 'https'`.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.secure); // true if HTTPS
+});
+```
+
+### req.stale
+
+Indicates whether the request is "stale" (opposite of `req.fresh`).
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(req.stale); // true or false
+});
+```
+
+### req.subdomains
+
+Contains an array of subdomains in the request's domain.
+
+```javascript
+// Request to "tobi.ferrets.example.com"
+app.get('/', (req, res) => {
+  console.log(req.subdomains); // ["ferrets", "tobi"]
+});
+```
+
+<Note>
+  The `subdomain offset` setting (default: 2) determines how many parts to remove from the right of the hostname to access the subdomain.
+</Note>
+
+### req.xhr
+
+Returns `true` if the request's `X-Requested-With` header is `"XMLHttpRequest"`, indicating an AJAX request.
+
+```javascript
+app.get('/api/data', (req, res) => {
+  if (req.xhr) {
+    res.json({ data: 'JSON response' });
+  } else {
+    res.send('HTML response');
+  }
+});
+```
+
+## Methods
+
+### req.accepts(types)
+
+Checks if the specified content types are acceptable based on the request's `Accept` HTTP header. Returns the best match or `false`.
+
+<ParamField path="types" type="string | array" required>
+  MIME type(s) to check
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  // Accept: text/html
+  req.accepts('html'); // => "html"
+  req.accepts('text/html'); // => "text/html"
+  req.accepts(['json', 'text']); // => "text"
+  req.accepts('application/json'); // => false
+});
+```
+
+### req.acceptsCharsets(charsets)
+
+Checks if the specified charsets are acceptable based on the request's `Accept-Charset` header.
+
+<ParamField path="charsets" type="string | array" required>
+  Character set(s) to check
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.acceptsCharsets('utf-8'); // => "utf-8"
+  req.acceptsCharsets(['utf-8', 'iso-8859-1']); // => "utf-8"
+});
+```
+
+### req.acceptsEncodings(encodings)
+
+Checks if the specified encodings are acceptable based on the request's `Accept-Encoding` header.
+
+<ParamField path="encodings" type="string | array" required>
+  Encoding(s) to check
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.acceptsEncodings('gzip'); // => "gzip"
+  req.acceptsEncodings(['gzip', 'deflate']); // => "gzip"
+});
+```
+
+### req.acceptsLanguages(languages)
+
+Checks if the specified languages are acceptable based on the request's `Accept-Language` header.
+
+<ParamField path="languages" type="string | array" required>
+  Language(s) to check
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.acceptsLanguages('en'); // => "en"
+  req.acceptsLanguages(['en', 'es', 'fr']); // => "en"
+});
+```
+
+### req.get(field)
+
+Returns the specified HTTP request header field. The match is case-insensitive. `Referrer` and `Referer` are interchangeable.
+
+<ParamField path="field" type="string" required>
+  The name of the header field
+</ParamField>
+
+```javascript
+app.get('/', (req, res) => {
+  req.get('Content-Type'); // => "text/plain"
+  req.get('content-type'); // => "text/plain"
+  req.get('Something'); // => undefined
+});
+```
+
+**Alias:** `req.header(field)`
+
+### req.is(type)
+
+Checks if the incoming request's `Content-Type` header matches the given MIME type.
+
+<ParamField path="type" type="string | array" required>
+  MIME type(s) to check
+</ParamField>
+
+```javascript
+app.post('/user', (req, res) => {
+  // Content-Type: text/html; charset=utf-8
+  req.is('html'); // => true
+  req.is('text/html'); // => true
+  req.is('text/*'); // => true
+  
+  // Content-Type: application/json
+  req.is('json'); // => true
+  req.is('application/json'); // => true
+  req.is('application/*'); // => true
+  
+  req.is('html'); // => false
+});
+```
+
+### req.range(size, [options])
+
+Parses the `Range` header field.
+
+<ParamField path="size" type="number" required>
+  The maximum size of the resource
+</ParamField>
+
+<ParamField path="options" type="object">
+  Options object with `combine` property
+</ParamField>
+
+```javascript
+app.get('/file', (req, res) => {
+  const range = req.range(1000);
+  
+  if (range) {
+    // Range: bytes=0-499
+    console.log(range);
+    // [{ start: 0, end: 499 }]
+    // range.type === "bytes"
+  }
+});
+```
+
+**Returns:**
+- `undefined` - No Range header
+- `-1` - Unsatisfiable range
+- `-2` - Invalid syntax
+- `array` - Array of ranges with a `type` property
+
+## Common Patterns
+
+### Content Negotiation
+
+```javascript
+app.get('/user', (req, res) => {
+  const accepts = req.accepts(['html', 'json']);
+  
+  if (accepts === 'json') {
+    res.json({ name: 'John' });
+  } else if (accepts === 'html') {
+    res.send('<h1>John</h1>');
+  } else {
+    res.status(406).send('Not Acceptable');
+  }
+});
+```
+
+### Accessing Headers
+
+```javascript
+app.get('/', (req, res) => {
+  const auth = req.get('Authorization');
+  const userAgent = req.get('User-Agent');
+  const referer = req.get('Referer');
+  
+  console.log({ auth, userAgent, referer });
+  res.send('OK');
+});
+```
+
+### Query String Handling
+
+```javascript
+app.get('/search', (req, res) => {
+  const { q, page = 1, limit = 10 } = req.query;
+  
+  // GET /search?q=express&page=2&limit=20
+  console.log(q); // "express"
+  console.log(page); // "2"
+  console.log(limit); // "20"
+  
+  res.send(`Results for: ${q}`);
+});
+```
+
+### Route Parameters
+
+```javascript
+app.get('/users/:from-:to', (req, res) => {
+  // GET /users/10-20
+  const { from, to } = req.params;
+  console.log(from); // "10"
+  console.log(to); // "20"
+  res.send(`Users ${from} to ${to}`);
+});
+```

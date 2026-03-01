@@ -1,0 +1,324 @@
+---
+title: Writing Middleware
+description: Advanced patterns for developing custom Express middleware
+---
+
+Middleware functions are the backbone of Express applications. Understanding advanced middleware patterns allows you to write more maintainable, reusable, and powerful code.
+
+## What is Middleware?
+
+Middleware functions have access to the request object (`req`), the response object (`res`), and the `next` function in the application's request-response cycle.
+
+```javascript
+function middleware(req, res, next) {
+  // Perform operations
+  next(); // Pass control to the next middleware
+}
+```
+
+## Parameterized Middleware
+
+Create configurable middleware by wrapping it in a function that returns the middleware.
+
+```javascript
+function restrictTo(role) {
+  return function(req, res, next) {
+    if (req.authenticatedUser.role === role) {
+      next();
+    } else {
+      next(new Error('Unauthorized'));
+    }
+  }
+}
+
+// Usage
+app.delete('/admin/users/:id', restrictTo('admin'), function(req, res) {
+  res.send('User deleted');
+});
+```
+
+<Tip>
+Parameterized middleware is ideal for creating reusable authorization, validation, and rate-limiting logic.
+</Tip>
+
+## Middleware Chains
+
+Chain multiple middleware functions to handle complex operations step by step.
+
+<Steps>
+  <Step title="Load Resource">
+    First middleware loads the resource from the database
+    
+    ```javascript
+    function loadUser(req, res, next) {
+      var user = users[req.params.id];
+      if (user) {
+        req.user = user;
+        next();
+      } else {
+        next(new Error('Failed to load user ' + req.params.id));
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Check Permissions">
+    Second middleware validates permissions
+    
+    ```javascript
+    function restrictToSelf(req, res, next) {
+      if (req.authenticatedUser.id === req.user.id) {
+        next();
+      } else {
+        next(new Error('Unauthorized'));
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Handle Request">
+    Final handler processes the request
+    
+    ```javascript
+    app.get('/user/:id/edit', 
+      loadUser, 
+      restrictToSelf, 
+      function(req, res) {
+        res.send('Editing user ' + req.user.name);
+      }
+    );
+    ```
+  </Step>
+</Steps>
+
+## Error-Handling Middleware
+
+Error-handling middleware must have four arguments: `(err, req, res, next)`.
+
+<CodeGroup>
+```javascript Basic Error Handler
+function errorHandler(err, req, res, next) {
+  // Log the error
+  console.error(err.stack);
+  
+  // Respond with error
+  res.status(500);
+  res.send('Internal Server Error');
+}
+
+// Must be placed after all routes
+app.use(errorHandler);
+```
+
+```javascript Advanced Error Handler
+function errorHandler(err, req, res, next) {
+  // Set status code
+  res.status(err.status || 500);
+  
+  // Content negotiation for errors
+  res.format({
+    html: function() {
+      res.render('error', { error: err });
+    },
+    json: function() {
+      res.json({ error: err.message });
+    },
+    default: function() {
+      res.type('txt').send(err.message);
+    }
+  });
+}
+
+app.use(errorHandler);
+```
+</CodeGroup>
+
+<Warning>
+Error-handling middleware must be defined **after** all other middleware and routes to catch errors properly.
+</Warning>
+
+## Async Error Handling
+
+When working with async operations, always pass errors to `next()`.
+
+```javascript
+app.get('/async', function(req, res, next) {
+  // Async operation
+  process.nextTick(function() {
+    next(new Error('Async error'));
+  });
+});
+
+// With Promises
+app.get('/promise', function(req, res, next) {
+  someAsyncOperation()
+    .then(data => res.send(data))
+    .catch(next); // Pass errors to error handler
+});
+
+// With async/await
+app.get('/await', async function(req, res, next) {
+  try {
+    const data = await someAsyncOperation();
+    res.send(data);
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+## Using res.locals
+
+Share data between middleware using `res.locals`.
+
+```javascript
+function loadCount(req, res, next) {
+  User.count(function(err, count) {
+    if (err) return next(err);
+    res.locals.count = count;
+    next();
+  });
+}
+
+function loadUsers(req, res, next) {
+  User.all(function(err, users) {
+    if (err) return next(err);
+    res.locals.users = users;
+    next();
+  });
+}
+
+app.get('/dashboard', loadCount, loadUsers, function(req, res) {
+  // res.locals automatically available in templates
+  res.render('dashboard', { title: 'Dashboard' });
+});
+```
+
+## Route-Specific Middleware
+
+Apply middleware to specific routes or route groups.
+
+<Accordion title="Mount middleware on specific paths">
+```javascript
+// Apply to all /api routes
+app.use('/api', function(req, res, next) {
+  var key = req.query['api-key'];
+  
+  if (!key) {
+    return next(error(400, 'api key required'));
+  }
+  
+  if (apiKeys.indexOf(key) === -1) {
+    return next(error(401, 'invalid api key'));
+  }
+  
+  req.key = key;
+  next();
+});
+
+// All /api routes are now protected
+app.get('/api/users', function(req, res) {
+  res.send(users);
+});
+```
+</Accordion>
+
+<Accordion title="Use app.all() for route patterns">
+```javascript
+// Apply to all methods on matching routes
+app.all('/admin/*', requireAuth, requireAdmin);
+
+app.get('/admin/users', function(req, res) {
+  res.send('Admin users');
+});
+
+app.post('/admin/users', function(req, res) {
+  res.send('Create user');
+});
+```
+</Accordion>
+
+## Parameter Middleware
+
+Use `app.param()` to automatically process route parameters.
+
+<CodeGroup>
+```javascript Single Parameter
+app.param('user', function(req, res, next, id) {
+  User.find(id, function(err, user) {
+    if (err) return next(err);
+    if (!user) return next(new Error('User not found'));
+    
+    req.user = user;
+    next();
+  });
+});
+
+// User is automatically loaded
+app.get('/user/:user', function(req, res) {
+  res.send('User: ' + req.user.name);
+});
+```
+
+```javascript Multiple Parameters
+app.param(['from', 'to'], function(req, res, next, num, name) {
+  req.params[name] = parseInt(num, 10);
+  
+  if (isNaN(req.params[name])) {
+    next(new Error('Invalid number: ' + num));
+  } else {
+    next();
+  }
+});
+
+app.get('/users/:from-:to', function(req, res) {
+  var from = req.params.from;
+  var to = req.params.to;
+  res.send('Users from ' + from + ' to ' + to);
+});
+```
+</CodeGroup>
+
+## Extending Express Objects
+
+Add custom methods to Express request and response objects.
+
+```javascript
+// Add custom response method
+app.response.message = function(msg) {
+  var sess = this.req.session;
+  sess.messages = sess.messages || [];
+  sess.messages.push(msg);
+  return this;
+};
+
+// Usage in routes
+app.post('/user', function(req, res) {
+  // Save user...
+  res.message('User created successfully').redirect('/');
+});
+```
+
+## Best Practices
+
+<Warning>
+**Always call `next()`** - Forgetting to call `next()` will cause the request to hang.
+</Warning>
+
+<Tip>
+**Order matters** - Middleware is executed in the order it's defined. Place error handlers last.
+</Tip>
+
+- Keep middleware functions small and focused
+- Use meaningful names that describe what the middleware does
+- Document any side effects (like modifying `req` or `res`)
+- Handle errors properly with try-catch or error callbacks
+- Test middleware in isolation before integrating
+
+## Next Steps
+
+Now that you understand advanced middleware patterns, explore:
+
+- [Health Checks](/advanced/health-checks) - Implement monitoring endpoints
+- [Error Handling](/guides/error-handling) - Comprehensive error management
+- [Security Best Practices](/guides/security) - Secure your middleware

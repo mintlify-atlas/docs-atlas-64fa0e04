@@ -1,0 +1,672 @@
+---
+title: Response
+description: The Response object represents the HTTP response that an Express app sends when it receives an HTTP request. It contains methods for sending responses of various types.
+---
+
+## Overview
+
+The `res` object represents the HTTP response that an Express app sends when it gets an HTTP request. By convention, the object is always referred to as `res` (and the HTTP request is `req`).
+
+```javascript
+app.get('/user/:id', (req, res) => {
+  res.send(`User ${req.params.id}`);
+});
+```
+
+The response object is an enhanced version of Node's built-in `http.ServerResponse` object.
+
+## Properties
+
+### res.app
+
+Reference to the Express application instance.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(res.app.get('title')); // "My App"
+});
+```
+
+### res.headersSent
+
+Boolean indicating if the app sent HTTP headers for the response.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(res.headersSent); // false
+  res.send('OK');
+  console.log(res.headersSent); // true
+});
+```
+
+### res.locals
+
+An object that contains response local variables scoped to the request. Available only to the views rendered during that request-response cycle.
+
+```javascript
+app.use((req, res, next) => {
+  res.locals.user = req.user;
+  res.locals.authenticated = !req.user.anonymous;
+  next();
+});
+
+app.get('/', (req, res) => {
+  res.render('index'); // user and authenticated available in template
+});
+```
+
+### res.req
+
+Reference to the request object.
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(res.req === req); // true
+});
+```
+
+## Methods
+
+### res.append(field, value)
+
+Appends the specified value to the HTTP response header. If the header is not already set, it creates the header with the specified value.
+
+<ParamField path="field" type="string" required>
+  The header field name
+</ParamField>
+
+<ParamField path="value" type="string | array" required>
+  The value to append
+</ParamField>
+
+```javascript
+res.append('Link', ['<http://localhost/>', '<http://localhost:3000/>']);
+res.append('Set-Cookie', 'foo=bar; Path=/; HttpOnly');
+res.append('Warning', '199 Miscellaneous warning');
+```
+
+### res.attachment([filename])
+
+Sets the HTTP response `Content-Disposition` header to "attachment". If a filename is given, it sets the `Content-Type` based on the extension.
+
+<ParamField path="filename" type="string">
+  The filename for the attachment
+</ParamField>
+
+```javascript
+res.attachment();
+// Content-Disposition: attachment
+
+res.attachment('path/to/logo.png');
+// Content-Disposition: attachment; filename="logo.png"
+// Content-Type: image/png
+```
+
+### res.cookie(name, value, [options])
+
+Sets a cookie with the specified name and value.
+
+<ParamField path="name" type="string" required>
+  The cookie name
+</ParamField>
+
+<ParamField path="value" type="string | object" required>
+  The cookie value (objects are JSON-stringified)
+</ParamField>
+
+<ParamField path="options" type="object">
+  Cookie options
+</ParamField>
+
+**Options:**
+- `domain` - Domain name for the cookie
+- `expires` - Expiry date (GMT). If not specified, creates a session cookie
+- `httpOnly` - Makes cookie inaccessible to client-side JavaScript
+- `maxAge` - Expiry time relative to current time in milliseconds
+- `path` - Cookie path (default: `/`)
+- `secure` - Marks cookie for HTTPS only
+- `signed` - Indicates if cookie should be signed
+- `sameSite` - Value of "SameSite" Set-Cookie attribute
+
+```javascript
+res.cookie('name', 'tobi', { 
+  domain: '.example.com', 
+  path: '/admin', 
+  secure: true 
+});
+
+res.cookie('rememberme', '1', { 
+  expires: new Date(Date.now() + 900000), 
+  httpOnly: true 
+});
+
+// maxAge example (15 minutes)
+res.cookie('rememberme', '1', { maxAge: 900000, httpOnly: true });
+
+// JSON cookie
+res.cookie('cart', { items: [1, 2, 3] });
+```
+
+### res.clearCookie(name, [options])
+
+Clears the cookie specified by name.
+
+<ParamField path="name" type="string" required>
+  The cookie name to clear
+</ParamField>
+
+<ParamField path="options" type="object">
+  Cookie options (must match the options used in `res.cookie()`)
+</ParamField>
+
+```javascript
+res.cookie('name', 'tobi', { path: '/admin' });
+res.clearCookie('name', { path: '/admin' });
+```
+
+<Warning>
+  Web browsers and other compliant clients will only clear cookies if the options match those given to `res.cookie()`, excluding `expires` and `maxAge`.
+</Warning>
+
+### res.download(path, [filename], [options], [callback])
+
+Transfers the file at `path` as an "attachment" with the optional `filename`. Automatically sets the `Content-Disposition` header.
+
+<ParamField path="path" type="string" required>
+  The path to the file to download
+</ParamField>
+
+<ParamField path="filename" type="string">
+  The filename for the download
+</ParamField>
+
+<ParamField path="options" type="object">
+  Options to pass to `res.sendFile()`
+</ParamField>
+
+<ParamField path="callback" type="function">
+  Callback function with signature `(err)`
+</ParamField>
+
+```javascript
+res.download('/report-12345.pdf');
+
+res.download('/report-12345.pdf', 'report.pdf');
+
+res.download('/report-12345.pdf', 'report.pdf', (err) => {
+  if (err) {
+    // Handle error, but note that response may be partially sent
+  } else {
+    // Decrement download count, etc.
+  }
+});
+```
+
+### res.end([data], [encoding])
+
+Ends the response process. Use to quickly end the response without any data.
+
+<ParamField path="data" type="string | buffer">
+  Data to send
+</ParamField>
+
+<ParamField path="encoding" type="string">
+  Encoding of the data
+</ParamField>
+
+```javascript
+res.end();
+res.status(404).end();
+```
+
+<Note>
+  This method comes from Node.js core, specifically the `response.end()` method of `http.ServerResponse`.
+</Note>
+
+### res.format(object)
+
+Performs content-negotiation based on the `Accept` HTTP header. Uses `req.accepts()` to select a handler for the request.
+
+<ParamField path="object" type="object" required>
+  Object with MIME types as keys and handler functions as values
+</ParamField>
+
+```javascript
+res.format({
+  'text/plain': () => {
+    res.send('hey');
+  },
+  
+  'text/html': () => {
+    res.send('<p>hey</p>');
+  },
+  
+  'application/json': () => {
+    res.send({ message: 'hey' });
+  },
+  
+  default: () => {
+    // log the request and respond with 406
+    res.status(406).send('Not Acceptable');
+  }
+});
+```
+
+You can also use extension names:
+
+```javascript
+res.format({
+  text: () => {
+    res.send('hey');
+  },
+  
+  html: () => {
+    res.send('<p>hey</p>');
+  },
+  
+  json: () => {
+    res.send({ message: 'hey' });
+  }
+});
+```
+
+### res.get(field)
+
+Returns the HTTP response header specified by field. The match is case-insensitive.
+
+<ParamField path="field" type="string" required>
+  The header field name
+</ParamField>
+
+```javascript
+res.get('Content-Type'); // => "text/plain"
+```
+
+### res.json([body])
+
+Sends a JSON response. Automatically sets the `Content-Type` header to `application/json`.
+
+<ParamField path="body" type="any">
+  The data to send as JSON
+</ParamField>
+
+```javascript
+res.json(null);
+res.json({ user: 'tobi' });
+res.status(500).json({ error: 'message' });
+```
+
+### res.jsonp([body])
+
+Sends a JSON response with JSONP support. Identical to `res.json()` except it opts-in to JSONP callback support.
+
+<ParamField path="body" type="any">
+  The data to send as JSONP
+</ParamField>
+
+```javascript
+res.jsonp(null);
+res.jsonp({ user: 'tobi' });
+res.status(500).jsonp({ error: 'message' });
+```
+
+**Example:**
+
+```javascript
+// ?callback=foo
+res.jsonp({ user: 'tobi' });
+// => foo({ "user": "tobi" })
+
+app.set('jsonp callback name', 'cb');
+
+// ?cb=foo
+res.jsonp(500, { error: 'message' });
+// => foo({ "error": "message" })
+```
+
+### res.links(links)
+
+Sets the `Link` HTTP header with the provided links object.
+
+<ParamField path="links" type="object" required>
+  Object with link relations as keys and URLs as values
+</ParamField>
+
+```javascript
+res.links({
+  next: 'http://api.example.com/users?page=2',
+  last: 'http://api.example.com/users?page=5'
+});
+```
+
+Produces:
+```
+Link: <http://api.example.com/users?page=2>; rel="next",
+      <http://api.example.com/users?page=5>; rel="last"
+```
+
+### res.location(path)
+
+Sets the response `Location` HTTP header to the specified path.
+
+<ParamField path="path" type="string" required>
+  The location URL
+</ParamField>
+
+```javascript
+res.location('/foo/bar');
+res.location('http://example.com');
+res.location('../login');
+res.location('back'); // Referer header or '/'
+```
+
+<Note>
+  Express passes the specified URL string as-is to the browser without validation or manipulation (except for `back`).
+</Note>
+
+### res.redirect([status], path)
+
+Redirects to the URL with an optional status code (default: 302).
+
+<ParamField path="status" type="number">
+  HTTP status code (default: 302)
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  The URL to redirect to
+</ParamField>
+
+```javascript
+res.redirect('/foo/bar');
+res.redirect('http://example.com');
+res.redirect(301, 'http://example.com');
+res.redirect('../login');
+res.redirect('back'); // Redirects to Referer or '/'
+```
+
+<Tabs>
+  <Tab title="Basic">
+    ```javascript
+    res.redirect('/admin');
+    ```
+  </Tab>
+  <Tab title="With Status">
+    ```javascript
+    res.redirect(301, 'http://example.com');
+    ```
+  </Tab>
+  <Tab title="Relative">
+    ```javascript
+    // From /blog/post/1
+    res.redirect('../list'); // => /blog/list
+    ```
+  </Tab>
+  <Tab title="Back">
+    ```javascript
+    res.redirect('back');
+    // Redirects to Referer header or '/'
+    ```
+  </Tab>
+</Tabs>
+
+### res.render(view, [locals], [callback])
+
+Renders a view template and sends the rendered HTML string to the client.
+
+<ParamField path="view" type="string" required>
+  The name of the view file to render
+</ParamField>
+
+<ParamField path="locals" type="object">
+  An object whose properties define local variables for the view
+</ParamField>
+
+<ParamField path="callback" type="function">
+  Callback function with signature `(err, html)`
+</ParamField>
+
+```javascript
+// Send the rendered view to the client
+res.render('index');
+
+// Pass local variables to the view
+res.render('user', { name: 'Tobi' }, (err, html) => {
+  if (err) {
+    return next(err);
+  }
+  res.send(html);
+});
+```
+
+<Note>
+  The callback is optional. If provided, you must explicitly send the response. Otherwise, `res.render()` sends the response automatically.
+</Note>
+
+### res.send([body])
+
+Sends the HTTP response. The `body` parameter can be a Buffer, String, Object, Boolean, or Array.
+
+<ParamField path="body" type="any">
+  The data to send
+</ParamField>
+
+```javascript
+res.send(Buffer.from('whoop'));
+res.send({ some: 'json' });
+res.send('<p>some html</p>');
+res.status(404).send('Sorry, we cannot find that!');
+res.status(500).send({ error: 'something blew up' });
+```
+
+**Automatic Content-Type:**
+- Buffer → `application/octet-stream`
+- String → `text/html`
+- Object/Array → `application/json`
+- Boolean/Number → `application/json`
+
+### res.sendFile(path, [options], [callback])
+
+Transfers the file at the given path. Sets the `Content-Type` response header based on the filename's extension.
+
+<ParamField path="path" type="string" required>
+  The path to the file (must be absolute unless `root` option is provided)
+</ParamField>
+
+<ParamField path="options" type="object">
+  Options object
+</ParamField>
+
+<ParamField path="callback" type="function">
+  Callback function with signature `(err)`
+</ParamField>
+
+**Options:**
+- `maxAge` - Sets the max-age property of the Cache-Control header in milliseconds
+- `root` - Root directory for relative filenames
+- `lastModified` - Sets the Last-Modified header (default: enabled)
+- `headers` - Object containing HTTP headers to serve with the file
+- `dotfiles` - Option for serving dotfiles. Values: 'allow', 'deny', 'ignore' (default: 'ignore')
+
+```javascript
+app.get('/file/:name', (req, res, next) => {
+  const options = {
+    root: path.join(__dirname, 'public'),
+    dotfiles: 'deny',
+    headers: {
+      'x-timestamp': Date.now(),
+      'x-sent': true
+    }
+  };
+
+  const fileName = req.params.name;
+  res.sendFile(fileName, options, (err) => {
+    if (err) {
+      next(err);
+    } else {
+      console.log('Sent:', fileName);
+    }
+  });
+});
+```
+
+<Warning>
+  The path must be absolute unless the `root` option is specified. Use `path.join()` or `path.resolve()` to construct absolute paths.
+</Warning>
+
+### res.sendStatus(statusCode)
+
+Sets the response status code and sends its string representation as the response body.
+
+<ParamField path="statusCode" type="number" required>
+  The HTTP status code
+</ParamField>
+
+```javascript
+res.sendStatus(200); // equivalent to res.status(200).send('OK')
+res.sendStatus(403); // equivalent to res.status(403).send('Forbidden')
+res.sendStatus(404); // equivalent to res.status(404).send('Not Found')
+res.sendStatus(500); // equivalent to res.status(500).send('Internal Server Error')
+```
+
+### res.set(field, [value])
+
+Sets the response's HTTP header field to value. To set multiple fields at once, pass an object.
+
+<ParamField path="field" type="string | object" required>
+  The header field name or an object of headers
+</ParamField>
+
+<ParamField path="value" type="string | array">
+  The value to set (can be array for multiple values)
+</ParamField>
+
+```javascript
+res.set('Content-Type', 'text/plain');
+
+res.set({
+  'Content-Type': 'text/plain',
+  'Content-Length': '123',
+  'ETag': '12345'
+});
+```
+
+**Alias:** `res.header(field, [value])`
+
+### res.status(code)
+
+Sets the HTTP status code for the response.
+
+<ParamField path="code" type="number" required>
+  The HTTP status code (100-999)
+</ParamField>
+
+```javascript
+res.status(200).send('OK');
+res.status(404).send('Not Found');
+res.status(500).json({ error: 'Internal Server Error' });
+```
+
+### res.type(type)
+
+Sets the `Content-Type` HTTP header to the MIME type determined by the specified type.
+
+<ParamField path="type" type="string" required>
+  The MIME type or file extension
+</ParamField>
+
+```javascript
+res.type('.html');              // => 'text/html'
+res.type('html');               // => 'text/html'
+res.type('json');               // => 'application/json'
+res.type('application/json');   // => 'application/json'
+res.type('png');                // => 'image/png'
+```
+
+**Alias:** `res.contentType(type)`
+
+### res.vary(field)
+
+Adds the field to the `Vary` response header, if it's not already there.
+
+<ParamField path="field" type="string | array" required>
+  The header field name(s)
+</ParamField>
+
+```javascript
+res.vary('User-Agent');
+res.vary(['User-Agent', 'Accept-Encoding']);
+```
+
+## Response Status Codes
+
+Common HTTP status codes:
+
+<Tabs>
+  <Tab title="Success (2xx)">
+    - `200` - OK
+    - `201` - Created
+    - `204` - No Content
+  </Tab>
+  <Tab title="Redirect (3xx)">
+    - `301` - Moved Permanently
+    - `302` - Found (Temporary Redirect)
+    - `304` - Not Modified
+  </Tab>
+  <Tab title="Client Error (4xx)">
+    - `400` - Bad Request
+    - `401` - Unauthorized
+    - `403` - Forbidden
+    - `404` - Not Found
+  </Tab>
+  <Tab title="Server Error (5xx)">
+    - `500` - Internal Server Error
+    - `502` - Bad Gateway
+    - `503` - Service Unavailable
+  </Tab>
+</Tabs>
+
+## Common Patterns
+
+### JSON API Response
+
+```javascript
+app.get('/api/users/:id', (req, res) => {
+  User.findById(req.params.id, (err, user) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  });
+});
+```
+
+### File Download
+
+```javascript
+app.get('/download/:file', (req, res) => {
+  const file = `${__dirname}/files/${req.params.file}`;
+  res.download(file, (err) => {
+    if (err) {
+      res.status(500).send('Error downloading file');
+    }
+  });
+});
+```
+
+### Content Negotiation
+
+```javascript
+app.get('/user', (req, res) => {
+  res.format({
+    html: () => {
+      res.render('user', { name: 'John' });
+    },
+    json: () => {
+      res.json({ name: 'John' });
+    }
+  });
+});
+```

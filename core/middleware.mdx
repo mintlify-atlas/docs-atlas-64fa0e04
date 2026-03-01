@@ -1,0 +1,494 @@
+---
+title: Middleware
+description: Middleware functions are functions that have access to the request object, response object, and the next middleware function in the application's request-response cycle.
+---
+
+## Overview
+
+Middleware functions can perform the following tasks:
+
+- Execute any code
+- Make changes to the request and response objects
+- End the request-response cycle
+- Call the next middleware function in the stack
+
+If the current middleware function does not end the request-response cycle, it must call `next()` to pass control to the next middleware function. Otherwise, the request will be left hanging.
+
+## Middleware Signature
+
+A middleware function has the following signature:
+
+```javascript
+function middleware(req, res, next) {
+  // Execute code
+  // Modify req or res
+  // End request-response cycle or call next()
+}
+```
+
+<ParamField path="req" type="object">
+  The request object
+</ParamField>
+
+<ParamField path="res" type="object">
+  The response object
+</ParamField>
+
+<ParamField path="next" type="function">
+  Callback function to pass control to the next middleware
+</ParamField>
+
+## Basic Example
+
+```javascript
+const express = require('express');
+const app = express();
+
+// Simple logger middleware
+app.use((req, res, next) => {
+  console.log('Time:', Date.now());
+  next();
+});
+
+app.get('/', (req, res) => {
+  res.send('Hello World');
+});
+
+app.listen(3000);
+```
+
+## Types of Middleware
+
+Express applications can use the following types of middleware:
+
+1. **Application-level middleware** - Bound to the app object using `app.use()` and `app.METHOD()`
+2. **Router-level middleware** - Bound to an instance of `express.Router()`
+3. **Error-handling middleware** - Has four arguments instead of three: `(err, req, res, next)`
+4. **Built-in middleware** - Provided by Express (e.g., `express.static`)
+5. **Third-party middleware** - Add functionality (e.g., `cookie-parser`, `morgan`)
+
+## Application-Level Middleware
+
+Bind application-level middleware to an instance of the app object using `app.use()` and `app.METHOD()`:
+
+<Tabs>
+  <Tab title="All Routes">
+    ```javascript
+    // Executed for all requests
+    app.use((req, res, next) => {
+      console.log('Time:', Date.now());
+      next();
+    });
+    ```
+  </Tab>
+  <Tab title="Specific Path">
+    ```javascript
+    // Executed for requests to /user/:id
+    app.use('/user/:id', (req, res, next) => {
+      console.log('Request Type:', req.method);
+      next();
+    });
+    ```
+  </Tab>
+  <Tab title="Route Handler">
+    ```javascript
+    // Route handler with middleware
+    app.get('/user/:id', (req, res, next) => {
+      console.log('ID:', req.params.id);
+      next();
+    }, (req, res) => {
+      res.send('User Info');
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Multiple Middleware Functions
+
+You can load multiple middleware functions at the same mount path:
+
+```javascript
+app.use('/user/:id', 
+  (req, res, next) => {
+    console.log('Request URL:', req.originalUrl);
+    next();
+  },
+  (req, res, next) => {
+    console.log('Request Type:', req.method);
+    next();
+  }
+);
+```
+
+### Middleware Arrays
+
+```javascript
+const logOriginalUrl = (req, res, next) => {
+  console.log('Request URL:', req.originalUrl);
+  next();
+};
+
+const logMethod = (req, res, next) => {
+  console.log('Request Type:', req.method);
+  next();
+};
+
+const middleware = [logOriginalUrl, logMethod];
+app.get('/user/:id', middleware, (req, res) => {
+  res.send(`User ${req.params.id}`);
+});
+```
+
+## Router-Level Middleware
+
+Router-level middleware works the same way as application-level middleware, except it's bound to an instance of `express.Router()`:
+
+```javascript
+const express = require('express');
+const app = express();
+const router = express.Router();
+
+// Router-level middleware
+router.use((req, res, next) => {
+  console.log('Time:', Date.now());
+  next();
+});
+
+router.use('/user/:id', (req, res, next) => {
+  console.log('Request URL:', req.originalUrl);
+  next();
+});
+
+router.get('/user/:id', (req, res) => {
+  res.send(`User ${req.params.id}`);
+});
+
+// Mount the router
+app.use('/', router);
+```
+
+## Error-Handling Middleware
+
+Error-handling middleware always takes **four arguments**. You must provide four arguments to identify it as an error-handling middleware function.
+
+```javascript
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+```
+
+<Warning>
+  Define error-handling middleware **last**, after all other `app.use()` and route calls.
+</Warning>
+
+### Complete Error Handling Example
+
+```javascript
+const express = require('express');
+const app = express();
+
+// Regular middleware and routes
+app.get('/', (req, res) => {
+  throw new Error('Something broke!');
+});
+
+app.get('/next', (req, res, next) => {
+  // Pass errors to next()
+  process.nextTick(() => {
+    next(new Error('oh no!'));
+  });
+});
+
+// Error-handling middleware (defined last)
+app.use((err, req, res, next) => {
+  // Log error
+  if (app.get('env') !== 'test') {
+    console.error(err.stack);
+  }
+  
+  // Send error response
+  res.status(500);
+  res.send('Internal Server Error');
+});
+
+app.listen(3000);
+```
+
+### Multiple Error Handlers
+
+You can define multiple error-handling middleware functions:
+
+```javascript
+// Log errors
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  next(err);
+});
+
+// Handle specific error types
+app.use((err, req, res, next) => {
+  if (err.type === 'unauthorized') {
+    res.status(401).send('Unauthorized');
+  } else {
+    next(err);
+  }
+});
+
+// Catch-all error handler
+app.use((err, req, res, next) => {
+  res.status(500).send('Internal Server Error');
+});
+```
+
+## Built-in Middleware
+
+Express has the following built-in middleware functions:
+
+### express.static
+
+Serves static files such as HTML, images, CSS, and JavaScript:
+
+```javascript
+app.use(express.static('public'));
+
+// Serve from multiple directories
+app.use(express.static('public'));
+app.use(express.static('files'));
+
+// With virtual path prefix
+app.use('/static', express.static('public'));
+```
+
+### express.json
+
+Parses incoming requests with JSON payloads:
+
+```javascript
+app.use(express.json());
+
+app.post('/api/users', (req, res) => {
+  console.log(req.body); // Parsed JSON object
+  res.json(req.body);
+});
+```
+
+### express.urlencoded
+
+Parses incoming requests with URL-encoded payloads:
+
+```javascript
+app.use(express.urlencoded({ extended: true }));
+
+app.post('/login', (req, res) => {
+  console.log(req.body.username);
+  console.log(req.body.password);
+  res.send('Login processed');
+});
+```
+
+### express.raw
+
+Parses incoming requests with raw payloads:
+
+```javascript
+app.use(express.raw({ type: 'application/octet-stream' }));
+```
+
+### express.text
+
+Parses incoming requests with text payloads:
+
+```javascript
+app.use(express.text({ type: 'text/plain' }));
+```
+
+## Third-Party Middleware
+
+Use third-party middleware to add functionality to Express apps:
+
+<Tabs>
+  <Tab title="Morgan">
+    HTTP request logger:
+    
+    ```javascript
+    const morgan = require('morgan');
+    app.use(morgan('dev'));
+    ```
+  </Tab>
+  <Tab title="Cookie Parser">
+    Parse Cookie header:
+    
+    ```javascript
+    const cookieParser = require('cookie-parser');
+    app.use(cookieParser());
+    
+    app.get('/', (req, res) => {
+      console.log(req.cookies);
+    });
+    ```
+  </Tab>
+  <Tab title="Compression">
+    Compress response bodies:
+    
+    ```javascript
+    const compression = require('compression');
+    app.use(compression());
+    ```
+  </Tab>
+  <Tab title="CORS">
+    Enable CORS:
+    
+    ```javascript
+    const cors = require('cors');
+    app.use(cors());
+    ```
+  </Tab>
+</Tabs>
+
+## Middleware Execution Order
+
+Middleware functions are executed **sequentially** in the order they are defined:
+
+```javascript
+app.use((req, res, next) => {
+  console.log('1');
+  next();
+});
+
+app.use((req, res, next) => {
+  console.log('2');
+  next();
+});
+
+app.get('/', (req, res) => {
+  console.log('3');
+  res.send('Hello');
+});
+
+// Output: 1, 2, 3
+```
+
+<Note>
+  The order in which you define middleware matters! Middleware defined earlier will execute before middleware defined later.
+</Note>
+
+## Skipping Middleware
+
+To skip the rest of the middleware functions in the current stack, call `next('route')`:
+
+```javascript
+app.get('/user/:id', (req, res, next) => {
+  // If user ID is 0, skip to the next route
+  if (req.params.id === '0') {
+    next('route');
+  } else {
+    next();
+  }
+}, (req, res) => {
+  // This will be skipped if ID is 0
+  res.send('Regular user');
+});
+
+app.get('/user/:id', (req, res) => {
+  res.send('Special user');
+});
+```
+
+<Warning>
+  `next('route')` only works in middleware loaded with `app.METHOD()` or `router.METHOD()`. It does not work in middleware loaded with `app.use()` or `router.use()`.
+</Warning>
+
+## Writing Middleware
+
+Here's an example of a custom middleware function:
+
+```javascript
+function requestLogger(req, res, next) {
+  const timestamp = new Date().toISOString();
+  const method = req.method;
+  const url = req.originalUrl;
+  const ip = req.ip;
+  
+  console.log(`[${timestamp}] ${method} ${url} from ${ip}`);
+  
+  next();
+}
+
+app.use(requestLogger);
+```
+
+### Configurable Middleware
+
+Create a function that returns middleware:
+
+```javascript
+function logger(options) {
+  return function(req, res, next) {
+    if (options.verbose) {
+      console.log('Timestamp:', Date.now());
+      console.log('Method:', req.method);
+      console.log('URL:', req.originalUrl);
+    } else {
+      console.log(req.method, req.originalUrl);
+    }
+    next();
+  };
+}
+
+app.use(logger({ verbose: true }));
+```
+
+### Authentication Middleware Example
+
+```javascript
+function requireAuth(req, res, next) {
+  const token = req.headers.authorization;
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  
+  // Verify token
+  verifyToken(token, (err, user) => {
+    if (err) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// Protected route
+app.get('/profile', requireAuth, (req, res) => {
+  res.json(req.user);
+});
+```
+
+### Role-Based Authorization
+
+```javascript
+function restrictTo(role) {
+  return function(req, res, next) {
+    if (req.user.role === role) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Forbidden' });
+    }
+  };
+}
+
+app.delete('/user/:id', requireAuth, restrictTo('admin'), (req, res) => {
+  res.send('User deleted');
+});
+```
+
+## Best Practices
+
+1. **Always call `next()`** unless you're ending the request-response cycle
+2. **Order matters** - Define middleware in the correct sequence
+3. **Error handling last** - Define error-handling middleware after all other middleware
+4. **Use `next(err)`** to pass errors to error-handling middleware
+5. **Keep middleware focused** - Each middleware should do one thing well
+6. **Make middleware reusable** - Write configurable middleware functions
+7. **Handle async errors** - Use `try/catch` with `next(err)` or use async middleware libraries

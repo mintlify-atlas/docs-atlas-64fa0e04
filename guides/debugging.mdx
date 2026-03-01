@@ -1,0 +1,210 @@
+---
+title: Debugging Express Apps
+description: Learn how to debug Express applications using the debug module and Node.js debugging tools
+---
+
+Express uses the [debug](https://www.npmjs.com/package/debug) module internally to log information about route matches, middleware functions, application mode, and the request-response cycle.
+
+## Using the Debug Module
+
+<Info>
+  The `debug` module allows you to selectively enable debug output by setting the `DEBUG` environment variable.
+</Info>
+
+### View All Internal Logs
+
+To see all internal logs used in Express, set the `DEBUG` environment variable to `express:*`:
+
+<CodeGroup>
+```bash macOS/Linux
+DEBUG=express:* node app.js
+```
+
+```bash Windows (Command Prompt)
+set DEBUG=express:* & node app.js
+```
+
+```bash Windows (PowerShell)
+$env:DEBUG = "express:*"
+node app.js
+```
+</CodeGroup>
+
+### Filter Debug Output
+
+You can filter debug output to specific modules:
+
+```bash
+# Only router logs
+DEBUG=express:router node app.js
+
+# Router and application logs
+DEBUG=express:router,express:application node app.js
+
+# All express logs plus your app logs
+DEBUG=express:*,myapp:* node app.js
+```
+
+## Adding Debug to Your App
+
+<Steps>
+  <Step title="Install debug module">
+    The debug module comes with Express, but you can also install it separately:
+    
+    ```bash
+    npm install debug
+    ```
+  </Step>
+  
+  <Step title="Create debug instances">
+    Create debug instances for different parts of your application:
+    
+    ```javascript
+    const debug = require('debug')('myapp:server');
+    const dbDebug = require('debug')('myapp:database');
+    
+    debug('Server starting on port 3000');
+    dbDebug('Connected to database');
+    ```
+  </Step>
+  
+  <Step title="Run with debug enabled">
+    Enable your debug output:
+    
+    ```bash
+    DEBUG=myapp:* node app.js
+    ```
+  </Step>
+</Steps>
+
+## Example Debug Integration
+
+```javascript
+const express = require('express');
+const debug = require('debug')('myapp:server');
+const dbDebug = require('debug')('myapp:db');
+
+const app = express();
+
+app.use((req, res, next) => {
+  debug('%s %s', req.method, req.url);
+  next();
+});
+
+app.get('/users', async (req, res) => {
+  dbDebug('Fetching users from database');
+  // ... database query
+  res.json(users);
+});
+
+const port = 3000;
+app.listen(port, () => {
+  debug('Server listening on port %d', port);
+});
+```
+
+## Node.js Inspector
+
+<Tip>
+  Use the built-in Node.js debugger for advanced debugging with breakpoints and step-through execution.
+</Tip>
+
+### Start with Inspector
+
+```bash
+node --inspect app.js
+```
+
+Then open Chrome and navigate to `chrome://inspect` to connect to your app.
+
+### Debugging with VS Code
+
+Create a `.vscode/launch.json` file:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Express App",
+      "program": "${workspaceFolder}/app.js",
+      "env": {
+        "DEBUG": "express:*,myapp:*"
+      }
+    }
+  ]
+}
+```
+
+## Logging Middleware
+
+Use Morgan for HTTP request logging:
+
+```javascript
+const morgan = require('morgan');
+
+// Use 'dev' format in development
+if (app.get('env') === 'development') {
+  app.use(morgan('dev'));
+}
+
+// Use 'combined' format in production
+if (app.get('env') === 'production') {
+  app.use(morgan('combined'));
+}
+```
+
+<Warning>
+  Avoid logging sensitive data like passwords, tokens, or personal information.
+</Warning>
+
+## Debug Patterns
+
+<Accordion title="Debug middleware execution">
+  ```javascript
+  const debug = require('debug')('myapp:middleware');
+  
+  app.use((req, res, next) => {
+    debug('Middleware executed for %s', req.url);
+    next();
+  });
+  ```
+</Accordion>
+
+<Accordion title="Debug route handlers">
+  ```javascript
+  const debug = require('debug')('myapp:routes');
+  
+  app.get('/api/data', (req, res) => {
+    debug('Fetching data for user %s', req.user?.id);
+    // ... handler code
+  });
+  ```
+</Accordion>
+
+<Accordion title="Debug error handlers">
+  ```javascript
+  const debug = require('debug')('myapp:error');
+  
+  app.use((err, req, res, next) => {
+    debug('Error occurred: %s', err.message);
+    debug('Stack: %s', err.stack);
+    // ... error handling
+  });
+  ```
+</Accordion>
+
+## Best Practices
+
+- Use descriptive namespace patterns like `app:module:submodule`
+- Disable debug output in production unless troubleshooting
+- Use different debug instances for different components
+- Combine debug with proper error handling
+- Use Morgan for HTTP request logging
+
+## Related
+
+- [Error Handling](/guides/error-handling)
+- [Production Best Practices](/guides/production-best-practices)

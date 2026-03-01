@@ -1,0 +1,437 @@
+---
+title: Router
+description: Complete API reference for the Express Router object
+---
+
+A `Router` instance is a complete middleware and routing system, often referred to as a "mini-app". It behaves like middleware itself and can be used to organize routes into separate files or modules.
+
+```javascript
+const express = require('express');
+const router = express.Router();
+```
+
+## express.Router([options])
+
+Creates a new Router instance.
+
+<ParamField name="options" type="object" optional>
+  Optional configuration object
+  
+  <Expandable title="options properties">
+    <ParamField name="caseSensitive" type="boolean" default={false}>
+      Enable case sensitivity. When enabled, "/Foo" and "/foo" are different routes.
+    </ParamField>
+    
+    <ParamField name="mergeParams" type="boolean" default={false}>
+      Preserve the req.params values from the parent router. If the parent and child have conflicting param names, the child's value takes precedence.
+    </ParamField>
+    
+    <ParamField name="strict" type="boolean" default={false}>
+      Enable strict routing. When enabled, the router treats "/foo" and "/foo/" as different routes.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```javascript
+const router = express.Router({
+  caseSensitive: true,
+  strict: true
+});
+```
+
+## Methods
+
+### router.all(path, [callback, ...] callback)
+
+This method functions like `router.METHOD()` methods, except it matches all HTTP methods (verbs).
+
+<ParamField name="path" type="string" required>
+  The path for which the middleware function is invoked
+</ParamField>
+
+<ParamField name="callback" type="function" required>
+  Callback functions. You can provide multiple callback functions that behave like middleware.
+</ParamField>
+
+```javascript
+router.all('*', requireAuthentication, loadUser);
+
+router.all('/api/*', requireAuthentication);
+
+router.all('/admin/*', (req, res, next) => {
+  console.log('Accessing admin section');
+  next();
+});
+```
+
+### router.METHOD(path, [callback, ...] callback)
+
+The `router.METHOD()` methods provide routing functionality, where METHOD is one of the HTTP methods (get, post, put, patch, delete, etc.) in lowercase.
+
+<ParamField name="path" type="string" required>
+  The path for which the middleware function is invoked
+</ParamField>
+
+<ParamField name="callback" type="function" required>
+  Callback functions. You can provide multiple callbacks, and all are treated equally as middleware.
+</ParamField>
+
+```javascript
+// GET method route
+router.get('/', (req, res) => {
+  res.send('Get request to the homepage');
+});
+
+// POST method route
+router.post('/', (req, res) => {
+  res.send('Post request to the homepage');
+});
+
+// Multiple callbacks
+router.get('/user/:id', (req, res, next) => {
+  // If user ID is 0, skip to next route
+  if (req.params.id === '0') next('route');
+  // Otherwise pass control to next middleware
+  else next();
+}, (req, res, next) => {
+  res.render('regular');
+});
+```
+
+Supported HTTP methods include:
+
+<Tabs>
+  <Tab title="Common Methods">
+    - `router.get()` - GET requests
+    - `router.post()` - POST requests  
+    - `router.put()` - PUT requests
+    - `router.patch()` - PATCH requests
+    - `router.delete()` - DELETE requests
+    - `router.head()` - HEAD requests
+    - `router.options()` - OPTIONS requests
+  </Tab>
+  
+  <Tab title="Additional Methods">
+    - `router.checkout()`
+    - `router.copy()`
+    - `router.lock()`
+    - `router.merge()`
+    - `router.mkactivity()`
+    - `router.mkcol()`
+    - `router.move()`
+    - `router.notify()`
+    - `router.purge()`
+    - `router.report()`
+    - `router.search()`
+    - `router.subscribe()`
+    - `router.trace()`
+    - `router.unlock()`
+    - `router.unsubscribe()`
+  </Tab>
+</Tabs>
+
+### router.param(name, callback)
+
+Adds callback triggers to route parameters, where `name` is the name of the parameter and `callback` is the callback function.
+
+<ParamField name="name" type="string" required>
+  The name of the route parameter
+</ParamField>
+
+<ParamField name="callback" type="function" required>
+  Callback function with signature `callback(req, res, next, value, name)`
+  
+  <Expandable title="callback parameters">
+    <ParamField name="req" type="Request">
+      The request object
+    </ParamField>
+    
+    <ParamField name="res" type="Response">
+      The response object
+    </ParamField>
+    
+    <ParamField name="next" type="function">
+      The next middleware function
+    </ParamField>
+    
+    <ParamField name="value" type="string">
+      The value of the parameter
+    </ParamField>
+    
+    <ParamField name="name" type="string">
+      The name of the parameter
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```javascript
+router.param('user', (req, res, next, id) => {
+  // Try to get user details from the User model
+  User.find(id, (err, user) => {
+    if (err) {
+      return next(err);
+    } else if (!user) {
+      return next(new Error('Failed to load user'));
+    }
+    req.user = user;
+    next();
+  });
+});
+
+// Route using :user parameter
+router.get('/users/:user', (req, res) => {
+  res.json(req.user);
+});
+```
+
+### router.route(path)
+
+Returns an instance of a single route which you can use to handle HTTP verbs with optional middleware. Use `router.route()` to avoid duplicate route naming and typos.
+
+<ParamField name="path" type="string" required>
+  The path for the route
+</ParamField>
+
+<ParamField name="returns" type="Route">
+  A Route instance
+</ParamField>
+
+```javascript
+router.route('/users/:user_id')
+  .get((req, res) => {
+    res.json({ message: 'Get user' });
+  })
+  .put((req, res) => {
+    res.json({ message: 'Update user' });
+  })
+  .delete((req, res) => {
+    res.json({ message: 'Delete user' });
+  });
+
+// Chaining with middleware
+router.route('/events')
+  .all((req, res, next) => {
+    // Runs for all HTTP verbs
+    next();
+  })
+  .get((req, res) => {
+    res.json({ events: [] });
+  })
+  .post((req, res) => {
+    res.json({ created: true });
+  });
+```
+
+### router.use([path], [function, ...] function)
+
+Uses the specified middleware function or functions, with optional mount path (defaulting to "/").
+
+<ParamField name="path" type="string | array" optional>
+  The path for which the middleware is invoked (default: '/')
+</ParamField>
+
+<ParamField name="function" type="function" required>
+  Middleware function(s) or another router instance
+</ParamField>
+
+```javascript
+// Middleware will run for all requests
+router.use((req, res, next) => {
+  console.log('Time:', Date.now());
+  next();
+});
+
+// Middleware for specific path
+router.use('/user/:id', (req, res, next) => {
+  console.log('Request URL:', req.originalUrl);
+  next();
+});
+
+// Mount another router
+const apiRouter = express.Router();
+apiRouter.get('/users', (req, res) => {
+  res.json({ users: [] });
+});
+router.use('/api', apiRouter);
+
+// Multiple middleware functions
+router.use('/admin', requireAuth, loadUser, (req, res) => {
+  res.render('admin');
+});
+
+// Error-handling middleware
+router.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+```
+
+## Complete Example
+
+### Basic Router Setup
+
+```javascript
+const express = require('express');
+const router = express.Router();
+
+// Middleware specific to this router
+router.use((req, res, next) => {
+  console.log('Time:', Date.now());
+  next();
+});
+
+// Define routes
+router.get('/', (req, res) => {
+  res.send('Birds home page');
+});
+
+router.get('/about', (req, res) => {
+  res.send('About birds');
+});
+
+module.exports = router;
+```
+
+### Using the Router in the Main App
+
+```javascript
+const express = require('express');
+const app = express();
+const birds = require('./birds');
+
+// Mount the router on the app
+app.use('/birds', birds);
+
+app.listen(3000);
+// Now /birds and /birds/about are available
+```
+
+### Advanced Router Example
+
+```javascript
+const express = require('express');
+const router = express.Router({ mergeParams: true });
+
+// Parameter middleware
+router.param('userId', (req, res, next, id) => {
+  User.findById(id)
+    .then(user => {
+      if (!user) {
+        const error = new Error('User not found');
+        error.status = 404;
+        throw error;
+      }
+      req.user = user;
+      next();
+    })
+    .catch(next);
+});
+
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: 'No credentials provided' });
+  }
+  next();
+};
+
+// Apply auth to all routes
+router.use(requireAuth);
+
+// Route handlers
+router.route('/users')
+  .get((req, res) => {
+    User.find()
+      .then(users => res.json(users))
+      .catch(err => res.status(500).json({ error: err.message }));
+  })
+  .post((req, res) => {
+    User.create(req.body)
+      .then(user => res.status(201).json(user))
+      .catch(err => res.status(400).json({ error: err.message }));
+  });
+
+router.route('/users/:userId')
+  .get((req, res) => {
+    res.json(req.user);
+  })
+  .put((req, res) => {
+    Object.assign(req.user, req.body);
+    req.user.save()
+      .then(user => res.json(user))
+      .catch(err => res.status(400).json({ error: err.message }));
+  })
+  .delete((req, res) => {
+    req.user.remove()
+      .then(() => res.status(204).end())
+      .catch(err => res.status(500).json({ error: err.message }));
+  });
+
+// Nested routes
+const postsRouter = express.Router({ mergeParams: true });
+
+postsRouter.get('/', (req, res) => {
+  Post.find({ userId: req.user.id })
+    .then(posts => res.json(posts))
+    .catch(err => res.status(500).json({ error: err.message }));
+});
+
+postsRouter.post('/', (req, res) => {
+  Post.create({ ...req.body, userId: req.user.id })
+    .then(post => res.status(201).json(post))
+    .catch(err => res.status(400).json({ error: err.message }));
+});
+
+router.use('/users/:userId/posts', postsRouter);
+
+// Error handling
+router.use((err, req, res, next) => {
+  res.status(err.status || 500).json({
+    error: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
+module.exports = router;
+```
+
+### Modular Router Organization
+
+```javascript
+// routes/api/index.js
+const express = require('express');
+const router = express.Router();
+
+const usersRouter = require('./users');
+const productsRouter = require('./products');
+const ordersRouter = require('./orders');
+
+// Mount sub-routers
+router.use('/users', usersRouter);
+router.use('/products', productsRouter);
+router.use('/orders', ordersRouter);
+
+// API root
+router.get('/', (req, res) => {
+  res.json({
+    message: 'API v1',
+    endpoints: [
+      '/api/users',
+      '/api/products',
+      '/api/orders'
+    ]
+  });
+});
+
+module.exports = router;
+
+// app.js
+const express = require('express');
+const app = express();
+const apiRouter = require('./routes/api');
+
+app.use(express.json());
+app.use('/api', apiRouter);
+
+app.listen(3000);
+```

@@ -1,0 +1,484 @@
+---
+title: Application
+description: The Express application object represents your Express application and provides methods for routing HTTP requests, configuring middleware, rendering views, and starting the HTTP server.
+---
+
+## Overview
+
+The `app` object is the Express application. It's created by calling `express()` and represents the top-level of your application.
+
+```javascript
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+  res.send('Hello World');
+});
+
+app.listen(3000);
+```
+
+## Properties
+
+### app.locals
+
+Local variables scoped to the application. These variables are available within the application and are useful for providing helper functions or application-level data to templates.
+
+```javascript
+app.locals.title = 'My App';
+app.locals.email = 'support@myapp.com';
+```
+
+<Note>
+  `app.locals` properties persist throughout the life of the application, unlike `res.locals` which are scoped to the request.
+</Note>
+
+### app.mountpath
+
+Contains the path pattern(s) on which a sub-app was mounted.
+
+```javascript
+const admin = express();
+admin.get('/', (req, res) => {
+  console.log(admin.mountpath); // '/admin'
+  res.send('Admin Homepage');
+});
+
+app.use('/admin', admin);
+```
+
+## Settings Methods
+
+### app.set(setting, value)
+
+Assigns `value` to the application setting `setting`. When called with only one argument, returns the setting's value.
+
+<ParamField path="setting" type="string" required>
+  The name of the setting
+</ParamField>
+
+<ParamField path="value" type="any">
+  The value to assign to the setting
+</ParamField>
+
+```javascript
+app.set('title', 'My Site');
+app.get('title'); // => "My Site"
+
+app.set('views', './views');
+app.set('view engine', 'ejs');
+```
+
+**Common Settings:**
+
+<Tabs>
+  <Tab title="View Settings">
+    - `views` - Directory for view templates (default: `process.cwd() + '/views'`)
+    - `view engine` - Default template engine extension
+    - `view cache` - Enables view template compilation caching (enabled in production)
+  </Tab>
+  <Tab title="Network Settings">
+    - `trust proxy` - Indicates the app is behind a proxy and to trust `X-Forwarded-*` headers
+    - `subdomain offset` - Number of dot-separated parts to remove to access subdomain (default: `2`)
+  </Tab>
+  <Tab title="Response Settings">
+    - `etag` - Set ETag response header. Values: `'weak'`, `'strong'`, `false` (default: `'weak'`)
+    - `jsonp callback name` - JSONP callback name (default: `'callback'`)
+    - `json spaces` - JSON response spaces for formatting
+    - `json replacer` - JSON replacer callback
+    - `json escape` - Escape JSON responses for security
+  </Tab>
+  <Tab title="Other Settings">
+    - `query parser` - Query string parser. Values: `'simple'`, `'extended'`, `false`, or custom function (default: `'simple'`)
+    - `x-powered-by` - Enable/disable X-Powered-By header (default: `true`)
+    - `env` - Environment mode (default: `process.env.NODE_ENV` or `'development'`)
+  </Tab>
+</Tabs>
+
+### app.get(setting)
+
+Returns the value of the application setting `setting`.
+
+<ParamField path="setting" type="string" required>
+  The name of the setting to retrieve
+</ParamField>
+
+```javascript
+app.get('title'); // => undefined
+app.set('title', 'My Site');
+app.get('title'); // => "My Site"
+```
+
+### app.enable(setting)
+
+Sets the boolean setting `setting` to `true`.
+
+<ParamField path="setting" type="string" required>
+  The name of the setting to enable
+</ParamField>
+
+```javascript
+app.enable('trust proxy');
+app.get('trust proxy'); // => true
+```
+
+### app.disable(setting)
+
+Sets the boolean setting `setting` to `false`.
+
+<ParamField path="setting" type="string" required>
+  The name of the setting to disable
+</ParamField>
+
+```javascript
+app.disable('trust proxy');
+app.get('trust proxy'); // => false
+```
+
+### app.enabled(setting)
+
+Returns `true` if the setting `setting` is enabled (truthy).
+
+<ParamField path="setting" type="string" required>
+  The name of the setting to check
+</ParamField>
+
+```javascript
+app.enable('trust proxy');
+app.enabled('trust proxy'); // => true
+```
+
+### app.disabled(setting)
+
+Returns `true` if the setting `setting` is disabled (falsy).
+
+<ParamField path="setting" type="string" required>
+  The name of the setting to check
+</ParamField>
+
+```javascript
+app.disable('trust proxy');
+app.disabled('trust proxy'); // => true
+```
+
+## Middleware & Routing Methods
+
+### app.use([path], ...callbacks)
+
+Mounts middleware function(s) at the specified path. The middleware function is executed when the base of the requested path matches `path`.
+
+<ParamField path="path" type="string" default="/">
+  The path for which the middleware is invoked
+</ParamField>
+
+<ParamField path="callbacks" type="function | array" required>
+  Middleware function(s) or an array of middleware functions
+</ParamField>
+
+```javascript
+// Middleware with no mount path - executed for every request
+app.use((req, res, next) => {
+  console.log('Time:', Date.now());
+  next();
+});
+
+// Middleware mounted on /user/:id - executed for any type of HTTP request on /user/:id
+app.use('/user/:id', (req, res, next) => {
+  console.log('Request Type:', req.method);
+  next();
+});
+
+// Multiple middleware functions
+app.use('/user/:id', (req, res, next) => {
+  console.log('Request URL:', req.originalUrl);
+  next();
+}, (req, res, next) => {
+  console.log('Request Type:', req.method);
+  next();
+});
+
+// Array of middleware
+const middleware = [fn1, fn2, fn3];
+app.use('/admin', middleware);
+```
+
+<Warning>
+  Middleware functions must call `next()` to pass control to the next middleware function. Otherwise, the request will be left hanging.
+</Warning>
+
+### app.route(path)
+
+Returns an instance of a single route which you can then use to handle HTTP verbs with optional middleware. Use `app.route()` to avoid duplicate route naming and thus typing errors.
+
+<ParamField path="path" type="string" required>
+  The path for the route
+</ParamField>
+
+```javascript
+app.route('/book')
+  .get((req, res) => {
+    res.send('Get a random book');
+  })
+  .post((req, res) => {
+    res.send('Add a book');
+  })
+  .put((req, res) => {
+    res.send('Update the book');
+  });
+```
+
+### HTTP Method Routes
+
+Express supports the following routing methods corresponding to HTTP methods:
+
+- `app.get(path, ...callbacks)`
+- `app.post(path, ...callbacks)`
+- `app.put(path, ...callbacks)`
+- `app.delete(path, ...callbacks)`
+- `app.patch(path, ...callbacks)`
+- `app.head(path, ...callbacks)`
+- `app.options(path, ...callbacks)`
+
+And more. See the [Routing guide](/core/routing) for details.
+
+<ParamField path="path" type="string" required>
+  The path for which the handler is invoked
+</ParamField>
+
+<ParamField path="callbacks" type="function" required>
+  Callback function(s) to handle the request
+</ParamField>
+
+<Tabs>
+  <Tab title="GET">
+    ```javascript
+    app.get('/', (req, res) => {
+      res.send('Hello World');
+    });
+    ```
+  </Tab>
+  <Tab title="POST">
+    ```javascript
+    app.post('/user', (req, res) => {
+      res.send('User created');
+    });
+    ```
+  </Tab>
+  <Tab title="PUT">
+    ```javascript
+    app.put('/user/:id', (req, res) => {
+      res.send(`Update user ${req.params.id}`);
+    });
+    ```
+  </Tab>
+  <Tab title="DELETE">
+    ```javascript
+    app.delete('/user/:id', (req, res) => {
+      res.send(`Delete user ${req.params.id}`);
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### app.all(path, ...callbacks)
+
+Matches all HTTP methods on the specified path. Useful for defining middleware that applies to all HTTP verbs.
+
+<ParamField path="path" type="string" required>
+  The path for which the handler is invoked
+</ParamField>
+
+<ParamField path="callbacks" type="function" required>
+  Callback function(s) to handle the request
+</ParamField>
+
+```javascript
+app.all('/secret', (req, res, next) => {
+  console.log('Accessing the secret section...');
+  next(); // pass control to the next handler
+});
+
+app.all('*', (req, res) => {
+  res.status(404).send('404 Not Found');
+});
+```
+
+### app.param(name, callback)
+
+Adds callback triggers to route parameters. The `name` parameter can be a single parameter name or an array of parameter names.
+
+<ParamField path="name" type="string | array" required>
+  The name(s) of the route parameter(s)
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  The callback function with signature `(req, res, next, value, name)`
+</ParamField>
+
+```javascript
+app.param('user', (req, res, next, id) => {
+  // Load user from database
+  User.find(id, (err, user) => {
+    if (err) {
+      next(err);
+    } else if (user) {
+      req.user = user;
+      next();
+    } else {
+      next(new Error('failed to load user'));
+    }
+  });
+});
+
+app.get('/user/:user', (req, res) => {
+  res.send(`User: ${req.user.name}`);
+});
+
+// Array of parameter names
+app.param(['id', 'page'], (req, res, next, value) => {
+  console.log('CALLED ONLY ONCE with', value);
+  next();
+});
+```
+
+## View Rendering
+
+### app.render(view, [options], callback)
+
+Renders a `view` with a `callback`. Accepts an optional `options` object. This is used internally by `res.render()`.
+
+<ParamField path="view" type="string" required>
+  The name of the view file to render
+</ParamField>
+
+<ParamField path="options" type="object">
+  An object whose properties define local variables for the view
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  Callback function with signature `(err, html)`
+</ParamField>
+
+```javascript
+app.render('email', { name: 'Tobi' }, (err, html) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  // html contains the rendered output
+  console.log(html);
+});
+```
+
+### app.engine(ext, callback)
+
+Registers the given template engine `callback` as `ext`.
+
+<ParamField path="ext" type="string" required>
+  The file extension (with or without leading dot)
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  The template engine function with signature `(path, options, callback)`
+</ParamField>
+
+```javascript
+const ejs = require('ejs');
+
+// Map .html files to ejs engine
+app.engine('html', ejs.renderFile);
+app.set('view engine', 'html');
+
+// Use consolidate.js for other engines
+const engines = require('consolidate');
+app.engine('hbs', engines.handlebars);
+app.engine('pug', engines.pug);
+```
+
+<Note>
+  Express will `require()` the engine internally if it provides a `.__express` method. For engines without this method, use this function to map extensions.
+</Note>
+
+## Server Methods
+
+### app.listen([port], [hostname], [backlog], [callback])
+
+Starts the application and binds it to a port. This method is identical to Node.js's `http.Server.listen()`.
+
+<ParamField path="port" type="number">
+  The port number to listen on (default: 3000)
+</ParamField>
+
+<ParamField path="hostname" type="string">
+  The hostname to bind to
+</ParamField>
+
+<ParamField path="backlog" type="number">
+  The maximum length of the queue of pending connections
+</ParamField>
+
+<ParamField path="callback" type="function">
+  Callback function called once the server starts listening
+</ParamField>
+
+```javascript
+const express = require('express');
+const app = express();
+
+app.listen(3000, () => {
+  console.log('Server listening on port 3000');
+});
+
+// Listen on specific host and port
+app.listen(3000, 'localhost', () => {
+  console.log('Server listening on localhost:3000');
+});
+```
+
+The `app.listen()` method returns an `http.Server` object:
+
+```javascript
+const server = app.listen(3000);
+
+// Can be used for graceful shutdown
+process.on('SIGTERM', () => {
+  server.close(() => {
+    console.log('Server closed');
+  });
+});
+```
+
+<Note>
+  If you want to create both HTTP and HTTPS servers, use the Node.js `http` and `https` modules directly:
+
+  ```javascript
+  const http = require('http');
+  const https = require('https');
+  const express = require('express');
+  const app = express();
+
+  http.createServer(app).listen(80);
+  https.createServer(options, app).listen(443);
+  ```
+</Note>
+
+## Events
+
+### mount
+
+The `mount` event is fired on a sub-app when it's mounted on a parent app. The parent app is passed to the callback function.
+
+```javascript
+const admin = express();
+
+admin.on('mount', (parent) => {
+  console.log('Admin Mounted');
+  console.log(parent); // refers to the parent app
+});
+
+admin.get('/', (req, res) => {
+  res.send('Admin Homepage');
+});
+
+app.use('/admin', admin);
+```

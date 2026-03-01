@@ -1,0 +1,731 @@
+---
+title: Response
+description: Complete API reference for the Express Response object
+---
+
+The `res` object represents the HTTP response that an Express app sends when it receives an HTTP request.
+
+```javascript
+app.get('/user/:id', (req, res) => {
+  res.send('User ' + req.params.id);
+});
+```
+
+By convention, the object is always referred to as `res` (and the HTTP request is `req`), but its actual name is determined by the parameters to the callback function.
+
+## Properties
+
+### res.app
+
+Reference to the Express application instance.
+
+<ResponseField name="res.app" type="Application">
+  The Express application instance
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(res.app.get('title'));
+});
+```
+
+### res.headersSent
+
+Boolean indicating if headers have been sent for the response.
+
+<ResponseField name="res.headersSent" type="boolean">
+  True if headers have been sent
+</ResponseField>
+
+```javascript
+app.get('/', (req, res) => {
+  console.log(res.headersSent); // false
+  res.send('OK');
+  console.log(res.headersSent); // true
+});
+```
+
+### res.locals
+
+An object containing local variables scoped to the request, available only to the view(s) rendered during that request/response cycle.
+
+<ResponseField name="res.locals" type="object">
+  Local variables for the current request
+</ResponseField>
+
+```javascript
+app.use((req, res, next) => {
+  res.locals.user = req.user;
+  res.locals.authenticated = !req.user.anonymous;
+  next();
+});
+
+app.get('/profile', (req, res) => {
+  res.render('profile'); // res.locals.user available in template
+});
+```
+
+## Methods
+
+### res.append(field [, value])
+
+Appends the specified value to the HTTP response header field. If the header is not already set, it creates the header with the specified value.
+
+<ParamField name="field" type="string" required>
+  The header field name
+</ParamField>
+
+<ParamField name="value" type="string | array" required>
+  The value to append
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.append('Link', ['<http://localhost/>', '<http://localhost:3000/>']);
+res.append('Set-Cookie', 'foo=bar; Path=/; HttpOnly');
+res.append('Warning', '199 Miscellaneous warning');
+```
+
+### res.attachment([filename])
+
+Sets the HTTP response `Content-Disposition` header field to "attachment". If a filename is given, it sets the `Content-Type` based on the extension and sets the `Content-Disposition` "filename=" parameter.
+
+<ParamField name="filename" type="string" optional>
+  The filename for the attachment
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.attachment();
+// Content-Disposition: attachment
+
+res.attachment('path/to/logo.png');
+// Content-Disposition: attachment; filename="logo.png"
+// Content-Type: image/png
+```
+
+### res.cookie(name, value [, options])
+
+Sets a cookie with the name `name` to the value `value`. The value can be a string or object converted to JSON.
+
+<ParamField name="name" type="string" required>
+  The name of the cookie
+</ParamField>
+
+<ParamField name="value" type="string | object" required>
+  The value of the cookie
+</ParamField>
+
+<ParamField name="options" type="object" optional>
+  Cookie options
+  
+  <Expandable title="options properties">
+    <ParamField name="domain" type="string" optional>
+      Domain name for the cookie
+    </ParamField>
+    
+    <ParamField name="encode" type="function" optional>
+      Function used to encode cookie value
+    </ParamField>
+    
+    <ParamField name="expires" type="Date" optional>
+      Expiry date of the cookie in GMT
+    </ParamField>
+    
+    <ParamField name="httpOnly" type="boolean" default={false}>
+      Flags the cookie to be accessible only by the web server
+    </ParamField>
+    
+    <ParamField name="maxAge" type="number" optional>
+      Expiry time relative to current time in milliseconds
+    </ParamField>
+    
+    <ParamField name="path" type="string" default="/">
+      Path for the cookie
+    </ParamField>
+    
+    <ParamField name="secure" type="boolean" default={false}>
+      Marks the cookie to be used with HTTPS only
+    </ParamField>
+    
+    <ParamField name="signed" type="boolean" default={false}>
+      Indicates if the cookie should be signed
+    </ParamField>
+    
+    <ParamField name="sameSite" type="boolean | string" optional>
+      Value of the "SameSite" Set-Cookie attribute (true, false, 'lax', 'strict', 'none')
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.cookie('name', 'tobi', { 
+  domain: '.example.com', 
+  path: '/admin', 
+  secure: true 
+});
+
+res.cookie('rememberme', '1', { 
+  expires: new Date(Date.now() + 900000), 
+  httpOnly: true 
+});
+
+res.cookie('cart', { items: [1, 2, 3] });
+res.cookie('cart', { items: [1, 2, 3] }, { maxAge: 900000 });
+```
+
+### res.clearCookie(name [, options])
+
+Clears the cookie specified by `name`. For details about the options object, see `res.cookie()`.
+
+<ParamField name="name" type="string" required>
+  The name of the cookie to clear
+</ParamField>
+
+<ParamField name="options" type="object" optional>
+  Cookie options (should match the options used when setting the cookie)
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.cookie('name', 'tobi', { path: '/admin' });
+res.clearCookie('name', { path: '/admin' });
+```
+
+### res.download(path [, filename] [, options] [, fn])
+
+Transfers the file at `path` as an "attachment". Typically, browsers will prompt the user for download.
+
+<ParamField name="path" type="string" required>
+  The path to the file to download
+</ParamField>
+
+<ParamField name="filename" type="string" optional>
+  The filename for the download (defaults to path)
+</ParamField>
+
+<ParamField name="options" type="object" optional>
+  Options passed to `res.sendFile()`
+</ParamField>
+
+<ParamField name="fn" type="function" optional>
+  Callback function invoked when transfer completes or errors occur
+</ParamField>
+
+```javascript
+res.download('/report-12345.pdf');
+
+res.download('/report-12345.pdf', 'report.pdf');
+
+res.download('/report-12345.pdf', 'report.pdf', (err) => {
+  if (err) {
+    // Handle error, but note that response may be partially sent
+  } else {
+    // Decrement download count, etc.
+  }
+});
+```
+
+### res.end([data] [, encoding])
+
+Ends the response process. Use to quickly end the response without any data.
+
+<ParamField name="data" type="string | Buffer" optional>
+  Data to send
+</ParamField>
+
+<ParamField name="encoding" type="string" optional>
+  Encoding for the data
+</ParamField>
+
+```javascript
+res.end();
+res.status(404).end();
+```
+
+### res.format(object)
+
+Performs content-negotiation on the `Accept` HTTP header when present. Uses `req.accepts()` to select a handler based on acceptable types ordered by their quality values.
+
+<ParamField name="object" type="object" required>
+  Object with MIME types as keys and handler functions as values
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.format({
+  'text/plain': function() {
+    res.send('hey');
+  },
+  
+  'text/html': function() {
+    res.send('<p>hey</p>');
+  },
+  
+  'application/json': function() {
+    res.send({ message: 'hey' });
+  },
+  
+  'default': function() {
+    res.status(406).send('Not Acceptable');
+  }
+});
+
+// Using extension names
+res.format({
+  text: function() {
+    res.send('hey');
+  },
+  
+  html: function() {
+    res.send('<p>hey</p>');
+  },
+  
+  json: function() {
+    res.send({ message: 'hey' });
+  }
+});
+```
+
+### res.get(field)
+
+Returns the HTTP response header specified by `field` (case-insensitive).
+
+<ParamField name="field" type="string" required>
+  The header field name
+</ParamField>
+
+<ParamField name="returns" type="string">
+  The header value
+</ParamField>
+
+```javascript
+res.get('Content-Type'); // "text/plain"
+```
+
+### res.json([body])
+
+Sends a JSON response. This method sends a response (with the correct content-type) that is the parameter converted to a JSON string using `JSON.stringify()`.
+
+<ParamField name="body" type="any" optional>
+  The value to convert to JSON and send
+</ParamField>
+
+```javascript
+res.json(null);
+res.json({ user: 'tobi' });
+res.status(500).json({ error: 'message' });
+```
+
+### res.jsonp([body])
+
+Sends a JSON response with JSONP support. Identical to `res.json()` except that it opts-in to JSONP callback support.
+
+<ParamField name="body" type="any" optional>
+  The value to convert to JSON(P) and send
+</ParamField>
+
+```javascript
+res.jsonp(null);
+res.jsonp({ user: 'tobi' });
+res.status(500).jsonp({ error: 'message' });
+
+// ?callback=foo
+// foo({ "user": "tobi" })
+```
+
+### res.links(links)
+
+Joins the links provided as properties of the parameter to populate the response's `Link` HTTP header field.
+
+<ParamField name="links" type="object" required>
+  Object with link relations as keys and URLs as values
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.links({
+  next: 'http://api.example.com/users?page=2',
+  last: 'http://api.example.com/users?page=5'
+});
+
+// Link: <http://api.example.com/users?page=2>; rel="next",
+//       <http://api.example.com/users?page=5>; rel="last"
+```
+
+### res.location(path)
+
+Sets the response `Location` HTTP header to the specified `path` parameter.
+
+<ParamField name="path" type="string" required>
+  The URL to set in the Location header
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.location('/foo/bar');
+res.location('http://example.com');
+res.location('back'); // Referrer header or '/'
+```
+
+### res.redirect([status,] path)
+
+Redirects to the URL derived from the specified `path`, with specified `status` (default 302).
+
+<ParamField name="status" type="number" optional>
+  HTTP status code (default: 302)
+</ParamField>
+
+<ParamField name="path" type="string" required>
+  The URL to redirect to
+</ParamField>
+
+```javascript
+res.redirect('/foo/bar');
+res.redirect('http://example.com');
+res.redirect(301, 'http://example.com');
+res.redirect('../login');
+res.redirect('back'); // Redirects to Referer, defaults to '/'
+```
+
+### res.render(view [, locals] [, callback])
+
+Renders a view and sends the rendered HTML string to the client.
+
+<ParamField name="view" type="string" required>
+  The file path of the view to render
+</ParamField>
+
+<ParamField name="locals" type="object" optional>
+  An object whose properties define local variables for the view
+</ParamField>
+
+<ParamField name="callback" type="function" optional>
+  Callback function with signature `callback(err, html)`
+</ParamField>
+
+```javascript
+res.render('index');
+
+res.render('index', { title: 'Home' });
+
+res.render('user', { name: 'Tobi' }, (err, html) => {
+  if (err) {
+    return next(err);
+  }
+  res.send(html);
+});
+```
+
+### res.send([body])
+
+Sends the HTTP response. The `body` parameter can be a Buffer, String, Object, Boolean, or Array.
+
+<ParamField name="body" type="any" optional>
+  The body to send
+</ParamField>
+
+```javascript
+res.send(Buffer.from('whoop'));
+res.send({ some: 'json' });
+res.send('<p>some html</p>');
+res.status(404).send('Sorry, we cannot find that!');
+res.status(500).send({ error: 'something blew up' });
+```
+
+### res.sendFile(path [, options] [, fn])
+
+Transfers the file at the given `path`. Sets the `Content-Type` response HTTP header field based on the filename's extension.
+
+<ParamField name="path" type="string" required>
+  The path to the file (must be absolute unless root option is specified)
+</ParamField>
+
+<ParamField name="options" type="object" optional>
+  Options object
+  
+  <Expandable title="options properties">
+    <ParamField name="maxAge" type="number | string" default={0}>
+      Sets Cache-Control max-age property in milliseconds or string
+    </ParamField>
+    
+    <ParamField name="root" type="string" optional>
+      Root directory for relative filenames
+    </ParamField>
+    
+    <ParamField name="lastModified" type="boolean" default={true}>
+      Sets Last-Modified header to file's last modified date
+    </ParamField>
+    
+    <ParamField name="headers" type="object" optional>
+      Object containing HTTP headers to serve with the file
+    </ParamField>
+    
+    <ParamField name="dotfiles" type="string" default="ignore">
+      Option for serving dotfiles: "allow", "deny", "ignore"
+    </ParamField>
+    
+    <ParamField name="acceptRanges" type="boolean" default={true}>
+      Enable or disable accepting ranged requests
+    </ParamField>
+    
+    <ParamField name="cacheControl" type="boolean" default={true}>
+      Enable or disable Cache-Control response header
+    </ParamField>
+    
+    <ParamField name="immutable" type="boolean" default={false}>
+      Enable or disable immutable directive in Cache-Control
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField name="fn" type="function" optional>
+  Callback function
+</ParamField>
+
+```javascript
+app.get('/file/:name', (req, res, next) => {
+  const options = {
+    root: path.join(__dirname, 'public'),
+    dotfiles: 'deny',
+    headers: {
+      'x-timestamp': Date.now(),
+      'x-sent': true
+    }
+  };
+  
+  res.sendFile(req.params.name, options, (err) => {
+    if (err) {
+      next(err);
+    } else {
+      console.log('Sent:', req.params.name);
+    }
+  });
+});
+
+// Absolute path
+res.sendFile('/path/to/file.pdf');
+```
+
+### res.sendStatus(statusCode)
+
+Sets the response HTTP status code to `statusCode` and sends the registered status message as the text response body.
+
+<ParamField name="statusCode" type="number" required>
+  HTTP status code
+</ParamField>
+
+```javascript
+res.sendStatus(200); // equivalent to res.status(200).send('OK')
+res.sendStatus(403); // equivalent to res.status(403).send('Forbidden')
+res.sendStatus(404); // equivalent to res.status(404).send('Not Found')
+res.sendStatus(500); // equivalent to res.status(500).send('Internal Server Error')
+```
+
+### res.set(field [, value])
+
+Sets the response's HTTP header `field` to `value`. To set multiple fields at once, pass an object as the parameter.
+
+<ParamField name="field" type="string | object" required>
+  The header field name or an object of multiple headers
+</ParamField>
+
+<ParamField name="value" type="string" optional>
+  The header value (not used if field is an object)
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.set('Content-Type', 'text/plain');
+
+res.set({
+  'Content-Type': 'text/plain',
+  'Content-Length': '123',
+  'ETag': '12345'
+});
+```
+
+Alias: `res.header(field [, value])`
+
+### res.status(code)
+
+Sets the HTTP status for the response.
+
+<ParamField name="code" type="number" required>
+  HTTP status code (must be an integer between 100 and 999)
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.status(403).end();
+res.status(400).send('Bad Request');
+res.status(404).sendFile('/absolute/path/to/404.png');
+```
+
+### res.type(type)
+
+Sets the `Content-Type` HTTP header to the MIME type determined by the specified `type`.
+
+<ParamField name="type" type="string" required>
+  MIME type or file extension
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.type('.html');              // 'text/html'
+res.type('html');               // 'text/html'
+res.type('json');               // 'application/json'
+res.type('application/json');   // 'application/json'
+res.type('png');                // 'image/png'
+```
+
+Alias: `res.contentType(type)`
+
+### res.vary(field)
+
+Adds the field to the `Vary` response header, if it is not already there.
+
+<ParamField name="field" type="string" required>
+  The header field to add to Vary
+</ParamField>
+
+<ParamField name="returns" type="Response">
+  Returns the response object for chaining
+</ParamField>
+
+```javascript
+res.vary('User-Agent').render('docs');
+```
+
+## Complete Example
+
+```javascript
+const express = require('express');
+const path = require('path');
+const app = express();
+
+app.use(express.json());
+
+// Send various response types
+app.get('/text', (req, res) => {
+  res.send('Hello World');
+});
+
+app.get('/json', (req, res) => {
+  res.json({ message: 'Hello', user: 'John' });
+});
+
+app.get('/status', (req, res) => {
+  res.sendStatus(404);
+});
+
+// Content negotiation
+app.get('/data', (req, res) => {
+  res.format({
+    'text/plain': () => {
+      res.send('Plain text data');
+    },
+    'application/json': () => {
+      res.json({ data: 'JSON data' });
+    },
+    'text/html': () => {
+      res.send('<html><body>HTML data</body></html>');
+    },
+    'default': () => {
+      res.status(406).send('Not Acceptable');
+    }
+  });
+});
+
+// File operations
+app.get('/download', (req, res) => {
+  res.download('/path/to/file.pdf', 'document.pdf');
+});
+
+app.get('/file', (req, res) => {
+  res.sendFile('index.html', { root: path.join(__dirname, 'public') });
+});
+
+// Cookies
+app.get('/setcookie', (req, res) => {
+  res.cookie('username', 'john', { maxAge: 900000, httpOnly: true });
+  res.send('Cookie set');
+});
+
+app.get('/clearcookie', (req, res) => {
+  res.clearCookie('username');
+  res.send('Cookie cleared');
+});
+
+// Redirects
+app.get('/redirect', (req, res) => {
+  res.redirect('/new-location');
+});
+
+app.get('/redirect-external', (req, res) => {
+  res.redirect(301, 'https://example.com');
+});
+
+// Headers
+app.get('/headers', (req, res) => {
+  res.set('X-Custom-Header', 'value');
+  res.append('Set-Cookie', 'cookie1=value1');
+  res.append('Set-Cookie', 'cookie2=value2');
+  res.links({
+    next: 'http://api.example.com/page/2',
+    last: 'http://api.example.com/page/10'
+  });
+  res.send('Check headers');
+});
+
+// Status codes
+app.get('/error', (req, res) => {
+  res.status(500).json({ error: 'Internal Server Error' });
+});
+
+app.get('/not-found', (req, res) => {
+  res.status(404).send('Page not found');
+});
+
+// Render views
+app.set('view engine', 'pug');
+app.get('/profile/:id', (req, res) => {
+  res.render('profile', { 
+    userId: req.params.id,
+    username: 'John Doe'
+  });
+});
+
+app.listen(3000);
+```

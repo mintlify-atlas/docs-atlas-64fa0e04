@@ -1,0 +1,128 @@
+---
+title: Introduction to Express
+description: Fast, unopinionated, minimalist web framework for Node.js
+---
+
+<img
+  className="block dark:hidden"
+  src="https://i.cloudup.com/zfY6lL7eFa-3000x3000.png"
+  alt="Express Logo"
+  style={{width: '200px', margin: '0 auto'}}
+/>
+<img
+  className="hidden dark:block"
+  src="https://i.cloudup.com/zfY6lL7eFa-3000x3000.png"
+  alt="Express Logo"
+  style={{width: '200px', margin: '0 auto'}}
+/>
+
+## What is Express?
+
+Express is a fast, unopinionated, minimalist web framework for [Node.js](https://nodejs.org). It provides a robust set of features for building web and mobile applications, making it one of the most popular Node.js frameworks.
+
+<Note>
+Express requires Node.js 18 or higher. Make sure you have Node.js installed before getting started.
+</Note>
+
+## Key Features
+
+Express comes with a comprehensive set of features that make building web applications straightforward and efficient:
+
+<CardGroup cols={2}>
+  <Card title="Robust Routing" icon="route">
+    Define routes for your application using intuitive HTTP methods and URL patterns
+  </Card>
+  <Card title="High Performance" icon="gauge-high">
+    Focus on high performance with minimal overhead and optimized code execution
+  </Card>
+  <Card title="HTTP Helpers" icon="code">
+    Built-in utilities for redirection, caching, content negotiation, and more
+  </Card>
+  <Card title="Template Engines" icon="paintbrush">
+    View system supporting 14+ template engines via consolidate.js
+  </Card>
+  <Card title="Middleware Support" icon="layer-group">
+    Powerful middleware system for request/response processing
+  </Card>
+  <Card title="Super-High Test Coverage" icon="check">
+    Battle-tested with extensive test coverage ensuring reliability
+  </Card>
+</CardGroup>
+
+## Philosophy
+
+The Express philosophy is to provide small, robust tooling for HTTP servers, making it a great solution for:
+
+- Single page applications
+- Traditional websites
+- Hybrid applications
+- Public HTTP APIs
+- Microservices
+
+Express does not force you to use any specific ORM or template engine. With support for over 14 template engines via [@ladjs/consolidate](https://github.com/ladjs/consolidate), you can quickly craft your perfect framework.
+
+## Quick Example
+
+Here's a simple Express server that responds with "Hello World":
+
+```javascript
+import express from 'express'
+
+const app = express()
+
+app.get('/', (req, res) => {
+  res.send('Hello World')
+})
+
+app.listen(3000, () => {
+  console.log('Server is running on http://localhost:3000')
+})
+```
+
+## Get Started
+
+Ready to build with Express? Follow these guides to get up and running:
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Install Express using npm, yarn, or pnpm
+  </Card>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get a working Express server running in minutes
+  </Card>
+  <Card
+    title="Hello World"
+    icon="hand-wave"
+    href="/hello-world"
+  >
+    Build your first Express application step-by-step
+  </Card>
+  <Card
+    title="Routing Guide"
+    icon="map-signs"
+    href="/core/routing"
+  >
+    Learn how to define routes and handle requests
+  </Card>
+</CardGroup>
+
+## Community and Support
+
+Express has a vibrant community and extensive ecosystem:
+
+- [Official Website and Documentation](https://expressjs.com/)
+- [GitHub Organization](https://github.com/expressjs) for official middleware and modules
+- [GitHub Discussions](https://github.com/expressjs/discussions) for development and usage questions
+- [npm Registry](https://www.npmjs.com/package/express) for the latest releases
+
+<Tip>
+Be sure to check the [migration guide](https://expressjs.com/en/guide/migrating-5) if you're upgrading from an earlier version.
+</Tip>

@@ -1,0 +1,499 @@
+---
+title: Process Managers
+description: Running Express apps in production with PM2, systemd, and other process managers
+---
+
+In production, you need a process manager to keep your Express application running reliably, handle crashes, and manage multiple instances for load balancing.
+
+## Why Use a Process Manager?
+
+Process managers provide essential production features:
+
+- **Auto-restart** - Automatically restart your app if it crashes
+- **Performance monitoring** - Track CPU, memory, and request metrics
+- **Clustering** - Run multiple instances to utilize all CPU cores
+- **Log management** - Centralized logging and rotation
+- **Zero-downtime deploys** - Reload your app without dropping connections
+- **Process lifecycle management** - Start, stop, and restart with ease
+
+<Warning>
+**Never run Node.js directly in production** - Always use a process manager or container orchestration system.
+</Warning>
+
+## PM2 (Recommended)
+
+PM2 is the most popular process manager for Node.js applications.
+
+### Installation
+
+```bash
+npm install -g pm2
+```
+
+### Basic Usage
+
+<Steps>
+  <Step title="Start Your Application">
+    ```bash
+    pm2 start app.js
+    ```
+  </Step>
+  
+  <Step title="View Running Processes">
+    ```bash
+    pm2 list
+    ```
+  </Step>
+  
+  <Step title="Monitor Your App">
+    ```bash
+    pm2 monit
+    ```
+  </Step>
+  
+  <Step title="View Logs">
+    ```bash
+    pm2 logs
+    ```
+  </Step>
+</Steps>
+
+### Cluster Mode
+
+Run multiple instances to utilize all CPU cores.
+
+```bash
+# Start app in cluster mode with max instances
+pm2 start app.js -i max
+
+# Or specify number of instances
+pm2 start app.js -i 4
+```
+
+<Tip>
+Use `-i max` to automatically create one instance per CPU core.
+</Tip>
+
+### Ecosystem File
+
+Create a `ecosystem.config.js` file for advanced configuration.
+
+<CodeGroup>
+```javascript ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'express-app',
+    script: './app.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'development',
+      PORT: 3000
+    },
+    env_production: {
+      NODE_ENV: 'production',
+      PORT: 8080
+    },
+    error_file: './logs/err.log',
+    out_file: './logs/out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    merge_logs: true,
+    watch: false,
+    max_memory_restart: '1G',
+    min_uptime: '10s',
+    max_restarts: 10
+  }]
+};
+```
+
+```bash Usage
+# Start with ecosystem file
+pm2 start ecosystem.config.js
+
+# Start with production environment
+pm2 start ecosystem.config.js --env production
+
+# Reload without downtime
+pm2 reload ecosystem.config.js
+```
+</CodeGroup>
+
+### PM2 Commands
+
+<Accordion title="Process Management">
+```bash
+# Start app
+pm2 start app.js --name "my-app"
+
+# Stop app
+pm2 stop my-app
+
+# Restart app
+pm2 restart my-app
+
+# Reload (zero-downtime)
+pm2 reload my-app
+
+# Delete from PM2
+pm2 delete my-app
+
+# Stop all
+pm2 stop all
+
+# Restart all
+pm2 restart all
+```
+</Accordion>
+
+<Accordion title="Monitoring and Logs">
+```bash
+# List all processes
+pm2 list
+
+# Monitor CPU/Memory
+pm2 monit
+
+# Show process details
+pm2 show my-app
+
+# View logs
+pm2 logs
+
+# View logs for specific app
+pm2 logs my-app
+
+# Clear logs
+pm2 flush
+```
+</Accordion>
+
+<Accordion title="Startup Script">
+```bash
+# Generate startup script
+pm2 startup
+
+# Save current process list
+pm2 save
+
+# Restore saved processes
+pm2 resurrect
+
+# Disable startup
+pm2 unstartup
+```
+</Accordion>
+
+### Zero-Downtime Deployment
+
+Update your app without dropping connections.
+
+```bash
+# 1. Pull latest code
+git pull origin main
+
+# 2. Install dependencies
+npm install
+
+# 3. Reload app with zero downtime
+pm2 reload ecosystem.config.js --update-env
+```
+
+<Tip>
+Use `reload` instead of `restart` to avoid dropping active connections.
+</Tip>
+
+## systemd
+
+systemd is the standard init system for Linux distributions.
+
+### Creating a Service
+
+Create `/etc/systemd/system/express-app.service`:
+
+```ini
+[Unit]
+Description=Express.js Application
+After=network.target
+
+[Service]
+Type=simple
+User=nodejs
+WorkingDirectory=/home/nodejs/app
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+ExecStart=/usr/bin/node /home/nodejs/app/server.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=express-app
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### systemd Commands
+
+<Steps>
+  <Step title="Enable the Service">
+    ```bash
+    sudo systemctl enable express-app
+    ```
+  </Step>
+  
+  <Step title="Start the Service">
+    ```bash
+    sudo systemctl start express-app
+    ```
+  </Step>
+  
+  <Step title="Check Status">
+    ```bash
+    sudo systemctl status express-app
+    ```
+  </Step>
+  
+  <Step title="View Logs">
+    ```bash
+    sudo journalctl -u express-app -f
+    ```
+  </Step>
+</Steps>
+
+<CodeGroup>
+```bash Control Service
+# Start
+sudo systemctl start express-app
+
+# Stop
+sudo systemctl stop express-app
+
+# Restart
+sudo systemctl restart express-app
+
+# Reload configuration
+sudo systemctl daemon-reload
+```
+
+```bash View Status and Logs
+# Status
+sudo systemctl status express-app
+
+# Logs (follow)
+sudo journalctl -u express-app -f
+
+# Logs (last 100 lines)
+sudo journalctl -u express-app -n 100
+
+# Logs (since today)
+sudo journalctl -u express-app --since today
+```
+</CodeGroup>
+
+## Docker
+
+Run your Express app in containers for consistency across environments.
+
+### Dockerfile
+
+```dockerfile
+FROM node:18-alpine
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy app source
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Run as non-root user
+USER node
+
+# Start app
+CMD ["node", "server.js"]
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    volumes:
+      - ./logs:/usr/src/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+<Accordion title="Docker Commands">
+```bash
+# Build image
+docker build -t express-app .
+
+# Run container
+docker run -d -p 3000:3000 --name express-app express-app
+
+# View logs
+docker logs -f express-app
+
+# Stop container
+docker stop express-app
+
+# Remove container
+docker rm express-app
+
+# With Docker Compose
+docker-compose up -d
+docker-compose logs -f
+docker-compose down
+```
+</Accordion>
+
+## Kubernetes
+
+For large-scale deployments, use Kubernetes.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: express-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: express-app
+  template:
+    metadata:
+      labels:
+        app: express-app
+    spec:
+      containers:
+      - name: express-app
+        image: express-app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+## Node.js Built-in Cluster
+
+For simple clustering without external dependencies.
+
+```javascript
+const cluster = require('cluster');
+const os = require('os');
+const express = require('express');
+
+if (cluster.isMaster) {
+  const numCPUs = os.cpus().length;
+  
+  console.log(`Master process ${process.pid} starting`);
+  console.log(`Forking ${numCPUs} workers`);
+  
+  // Fork workers
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+  
+  // Handle worker exit
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`Worker ${worker.process.pid} died`);
+    console.log('Starting a new worker');
+    cluster.fork();
+  });
+  
+} else {
+  // Workers share the TCP connection
+  const app = express();
+  
+  app.get('/', (req, res) => {
+    res.send(`Hello from worker ${process.pid}`);
+  });
+  
+  app.listen(3000, () => {
+    console.log(`Worker ${process.pid} started`);
+  });
+}
+```
+
+<Warning>
+PM2 provides more features than the built-in cluster module. Use PM2 unless you have specific requirements.
+</Warning>
+
+## Comparison
+
+| Feature | PM2 | systemd | Docker | Kubernetes |
+|---------|-----|---------|--------|------------|
+| Auto-restart | ✓ | ✓ | ✓ | ✓ |
+| Clustering | ✓ | Manual | Manual | ✓ |
+| Monitoring | ✓ | Basic | External | ✓ |
+| Log management | ✓ | ✓ | ✓ | ✓ |
+| Zero-downtime | ✓ | Manual | ✓ | ✓ |
+| Learning curve | Easy | Medium | Medium | Hard |
+| Best for | VPS/VM | Linux servers | Any OS | Large scale |
+
+## Best Practices
+
+<Tip>
+**Use PM2 for most cases** - It's the easiest and most feature-rich option for VPS/VM deployments.
+</Tip>
+
+<Tip>
+**Enable clustering** - Utilize all CPU cores for better performance.
+</Tip>
+
+<Warning>
+**Set memory limits** - Prevent memory leaks from crashing your server.
+</Warning>
+
+- Always use a process manager in production
+- Enable automatic restarts on failure
+- Configure proper logging
+- Set up startup scripts for auto-start on boot
+- Monitor resource usage regularly
+- Implement health checks
+- Use environment variables for configuration
+
+## Next Steps
+
+- [Health Checks](/advanced/health-checks) - Implement monitoring endpoints
+- [Production Best Practices](/guides/production-best-practices) - Deploy and optimize your app

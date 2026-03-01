@@ -1,0 +1,444 @@
+---
+title: Hello World
+description: Build your first Express application with this step-by-step Hello World tutorial
+---
+
+## Introduction
+
+This tutorial will walk you through creating a basic Express application from scratch. By the end, you'll understand the fundamentals of Express and have a working web server.
+
+<Note>
+This tutorial assumes you have Node.js 18 or higher installed. If not, visit the [Installation](/installation) guide first.
+</Note>
+
+## Project Setup
+
+<Steps>
+  <Step title="Create project directory">
+    Create a new directory for your Hello World application:
+    
+    ```bash
+    mkdir express-hello-world
+    cd express-hello-world
+    ```
+  </Step>
+  
+  <Step title="Initialize Node.js project">
+    Create a `package.json` file to manage your project dependencies:
+    
+    ```bash
+    npm init -y
+    ```
+    
+    This creates a basic `package.json` with default values.
+  </Step>
+  
+  <Step title="Install Express">
+    Install Express as a project dependency:
+    
+    <CodeGroup>
+    ```bash npm
+    npm install express
+    ```
+    
+    ```bash yarn
+    yarn add express
+    ```
+    
+    ```bash pnpm
+    pnpm add express
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Creating Your First Server
+
+<Steps>
+  <Step title="Create the main file">
+    Create a file named `index.js` in your project root:
+    
+    ```bash
+    touch index.js
+    ```
+  </Step>
+  
+  <Step title="Import Express">
+    Open `index.js` in your text editor and import Express:
+    
+    ```javascript index.js
+    const express = require('express')
+    ```
+    
+    This imports the Express module into your application.
+  </Step>
+  
+  <Step title="Create Express application">
+    Create an instance of an Express application:
+    
+    ```javascript index.js
+    const express = require('express')
+    const app = express()
+    ```
+    
+    The `app` object has methods for routing HTTP requests, configuring middleware, rendering HTML views, and more.
+  </Step>
+  
+  <Step title="Define a route">
+    Add a route handler for the root path:
+    
+    ```javascript index.js
+    const express = require('express')
+    const app = express()
+    
+    app.get('/', (req, res) => {
+      res.send('Hello World')
+    })
+    ```
+    
+    This tells Express to respond with "Hello World" when a GET request is made to the root URL (`/`).
+    
+    <Info>
+    - `req` (request) - contains information about the HTTP request
+    - `res` (response) - used to send a response back to the client
+    </Info>
+  </Step>
+  
+  <Step title="Start the server">
+    Add code to start the server on a specific port:
+    
+    ```javascript index.js
+    const express = require('express')
+    const app = express()
+    
+    app.get('/', (req, res) => {
+      res.send('Hello World')
+    })
+    
+    app.listen(3000, () => {
+      console.log('Express started on port 3000')
+    })
+    ```
+    
+    The `listen()` method binds the application to port 3000 and starts listening for connections.
+  </Step>
+</Steps>
+
+## Running Your Application
+
+<Steps>
+  <Step title="Start the server">
+    Run your application using Node.js:
+    
+    ```bash
+    node index.js
+    ```
+    
+    You should see the console message:
+    ```
+    Express started on port 3000
+    ```
+  </Step>
+  
+  <Step title="Test in browser">
+    Open your web browser and navigate to:
+    
+    ```
+    http://localhost:3000
+    ```
+    
+    You should see "Hello World" displayed in your browser.
+  </Step>
+  
+  <Step title="Test with curl (optional)">
+    Alternatively, test using curl from another terminal:
+    
+    ```bash
+    curl http://localhost:3000
+    ```
+    
+    Output:
+    ```
+    Hello World
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+To stop the server, press `Ctrl+C` in the terminal where it's running.
+</Tip>
+
+## Understanding the Code
+
+Let's break down what each part of your Hello World application does:
+
+### Importing Express
+
+```javascript
+const express = require('express')
+```
+
+This line imports the Express module. Express is a function that, when called, creates a new application.
+
+### Creating the Application
+
+```javascript
+const app = express()
+```
+
+This creates a new Express application instance. The `app` object represents your web application and provides methods for:
+
+- Routing HTTP requests
+- Configuring middleware
+- Rendering views
+- Setting application properties
+
+### Defining Routes
+
+```javascript
+app.get('/', (req, res) => {
+  res.send('Hello World')
+})
+```
+
+This defines a route handler for GET requests to the root path (`/`). When a user visits `http://localhost:3000/`, this function executes.
+
+- `app.get()` - handles HTTP GET requests
+- `'/'` - the URL path to match
+- `(req, res) => {...}` - callback function executed when the route matches
+- `res.send()` - sends the response back to the client
+
+### Starting the Server
+
+```javascript
+app.listen(3000, () => {
+  console.log('Express started on port 3000')
+})
+```
+
+This starts the server and tells it to listen for incoming requests on port 3000. The callback function runs once the server starts successfully.
+
+## Expanding Your Application
+
+### Adding More Routes
+
+You can add multiple routes to handle different URLs:
+
+```javascript index.js
+const express = require('express')
+const app = express()
+
+app.get('/', (req, res) => {
+  res.send('Hello World')
+})
+
+app.get('/about', (req, res) => {
+  res.send('About page')
+})
+
+app.get('/contact', (req, res) => {
+  res.send('Contact page')
+})
+
+app.listen(3000, () => {
+  console.log('Express started on port 3000')
+})
+```
+
+Now you can visit:
+- `http://localhost:3000/` - displays "Hello World"
+- `http://localhost:3000/about` - displays "About page"
+- `http://localhost:3000/contact` - displays "Contact page"
+
+### Sending JSON Responses
+
+For API endpoints, you can send JSON instead of plain text:
+
+```javascript index.js
+app.get('/api/hello', (req, res) => {
+  res.json({
+    message: 'Hello World',
+    timestamp: new Date().toISOString()
+  })
+})
+```
+
+Test it:
+```bash
+curl http://localhost:3000/api/hello
+```
+
+Output:
+```json
+{
+  "message": "Hello World",
+  "timestamp": "2026-03-01T12:00:00.000Z"
+}
+```
+
+### Using Route Parameters
+
+Capture dynamic values from URLs using route parameters:
+
+```javascript index.js
+app.get('/user/:id', (req, res) => {
+  const userId = req.params.id
+  res.send(`User ID: ${userId}`)
+})
+```
+
+Test it:
+```bash
+curl http://localhost:3000/user/123
+# Output: User ID: 123
+
+curl http://localhost:3000/user/abc
+# Output: User ID: abc
+```
+
+### Handling Different HTTP Methods
+
+Express supports all HTTP methods:
+
+```javascript index.js
+const express = require('express')
+const app = express()
+
+// Parse JSON request bodies
+app.use(express.json())
+
+// GET request
+app.get('/api/data', (req, res) => {
+  res.json({ method: 'GET' })
+})
+
+// POST request
+app.post('/api/data', (req, res) => {
+  res.json({ method: 'POST', data: req.body })
+})
+
+// PUT request
+app.put('/api/data/:id', (req, res) => {
+  res.json({ method: 'PUT', id: req.params.id })
+})
+
+// DELETE request
+app.delete('/api/data/:id', (req, res) => {
+  res.json({ method: 'DELETE', id: req.params.id })
+})
+
+app.listen(3000, () => {
+  console.log('Express started on port 3000')
+})
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use environment variables for port configuration">
+    Instead of hardcoding the port, use environment variables:
+    
+    ```javascript
+    const port = process.env.PORT || 3000
+    
+    app.listen(port, () => {
+      console.log(`Express started on port ${port}`)
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="Add error handling">
+    Always include error handling middleware:
+    
+    ```javascript
+    app.use((err, req, res, next) => {
+      console.error(err.stack)
+      res.status(500).send('Something went wrong!')
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="Use nodemon for development">
+    Install nodemon to automatically restart your server when files change:
+    
+    ```bash
+    npm install --save-dev nodemon
+    ```
+    
+    Add to `package.json`:
+    ```json
+    {
+      "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+      }
+    }
+    ```
+    
+    Run with: `npm run dev`
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+Here's the complete Hello World application with all the features discussed:
+
+```javascript index.js
+const express = require('express')
+const app = express()
+const port = process.env.PORT || 3000
+
+// Middleware
+app.use(express.json())
+
+// Routes
+app.get('/', (req, res) => {
+  res.send('Hello World')
+})
+
+app.get('/api/hello', (req, res) => {
+  res.json({
+    message: 'Hello World',
+    timestamp: new Date().toISOString()
+  })
+})
+
+app.get('/user/:id', (req, res) => {
+  res.send(`User ID: ${req.params.id}`)
+})
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).send('Page not found')
+})
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack)
+  res.status(500).send('Internal server error')
+})
+
+// Start server
+app.listen(port, () => {
+  console.log(`Express started on port ${port}`)
+})
+```
+
+## Next Steps
+
+Now that you've built your first Express application, explore these topics:
+
+<CardGroup cols={2}>
+  <Card title="Routing" icon="route" href="/core/routing">
+    Learn advanced routing techniques and patterns
+  </Card>
+  <Card title="Middleware" icon="layer-group" href="/core/middleware">
+    Understand how middleware works in Express
+  </Card>
+  <Card title="Template Engines" icon="paintbrush" href="/guides/template-engines">
+    Render dynamic HTML using template engines
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Implement robust error handling strategies
+  </Card>
+</CardGroup>

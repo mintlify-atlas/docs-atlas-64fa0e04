@@ -1,0 +1,307 @@
+---
+title: Using Template Engines
+description: Learn how to use template engines to render dynamic HTML in Express applications
+---
+
+Template engines enable you to use static template files in your application. At runtime, the template engine replaces variables in a template file with actual values and transforms the template into an HTML file sent to the client.
+
+## Popular Template Engines
+
+<CardGroup cols={3}>
+  <Card title="Pug" icon="code">
+    Clean, whitespace-sensitive syntax
+  </Card>
+  <Card title="EJS" icon="code">
+    Embedded JavaScript templates
+  </Card>
+  <Card title="Handlebars" icon="code">
+    Minimal logic, mustache compatible
+  </Card>
+</CardGroup>
+
+## Setting Up a Template Engine
+
+<Steps>
+  <Step title="Install the template engine">
+    ```bash
+    npm install ejs
+    ```
+  </Step>
+  
+  <Step title="Configure Express">
+    ```javascript
+    const express = require('express');
+    const path = require('path');
+    
+    const app = express();
+    
+    // Set views directory
+    app.set('views', path.join(__dirname, 'views'));
+    
+    // Set view engine
+    app.set('view engine', 'ejs');
+    ```
+  </Step>
+  
+  <Step title="Create template files">
+    Create a file at `views/index.ejs`:
+    
+    ```html
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title><%= title %></title>
+      </head>
+      <body>
+        <h1><%= header %></h1>
+        <ul>
+          <% users.forEach(function(user) { %>
+            <li><%= user.name %> - <%= user.email %></li>
+          <% }); %>
+        </ul>
+      </body>
+    </html>
+    ```
+  </Step>
+  
+  <Step title="Render the template">
+    ```javascript
+    app.get('/', function(req, res) {
+      res.render('index', {
+        title: 'My App',
+        header: 'Users',
+        users: [
+          { name: 'Tobi', email: 'tobi@example.com' },
+          { name: 'Loki', email: 'loki@example.com' }
+        ]
+      });
+    });
+    ```
+  </Step>
+</Steps>
+
+## EJS Templates
+
+EJS (Embedded JavaScript) uses plain JavaScript in templates.
+
+### Basic Syntax
+
+```html
+<!-- Output escaped value -->
+<%= value %>
+
+<!-- Output unescaped value -->
+<%- value %>
+
+<!-- JavaScript code -->
+<% if (user) { %>
+  <h2>Hello <%= user.name %></h2>
+<% } %>
+
+<!-- Loop through array -->
+<ul>
+  <% items.forEach(function(item) { %>
+    <li><%= item %></li>
+  <% }); %>
+</ul>
+```
+
+### Custom File Extensions
+
+Register EJS with a custom extension:
+
+```javascript
+const ejs = require('ejs');
+
+// Use .html extension instead of .ejs
+app.engine('html', ejs.__express);
+app.set('view engine', 'html');
+
+// Now you can use .html files
+res.render('users.html', { users: users });
+```
+
+<Info>
+  The `.html` extension makes templates easier to edit in IDEs with HTML syntax highlighting.
+</Info>
+
+## Pug Templates
+
+Pug (formerly Jade) uses indentation-based syntax.
+
+<Steps>
+  <Step title="Install Pug">
+    ```bash
+    npm install pug
+    ```
+  </Step>
+  
+  <Step title="Configure Express">
+    ```javascript
+    app.set('view engine', 'pug');
+    ```
+  </Step>
+  
+  <Step title="Create Pug template">
+    Create `views/index.pug`:
+    
+    ```pug
+    doctype html
+    html
+      head
+        title= title
+      body
+        h1= header
+        ul
+          each user in users
+            li= user.name + ' - ' + user.email
+    ```
+  </Step>
+</Steps>
+
+## Handlebars Templates
+
+Handlebars provides minimal logic templates.
+
+```bash
+npm install express-handlebars
+```
+
+```javascript
+const exphbs = require('express-handlebars');
+
+app.engine('handlebars', exphbs.engine());
+app.set('view engine', 'handlebars');
+```
+
+```handlebars
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{title}}</title>
+  </head>
+  <body>
+    <h1>{{header}}</h1>
+    <ul>
+      {{#each users}}
+        <li>{{name}} - {{email}}</li>
+      {{/each}}
+    </ul>
+  </body>
+</html>
+```
+
+## Custom Template Engines
+
+You can register custom template engines:
+
+```javascript
+const fs = require('fs');
+const marked = require('marked');
+const escapeHtml = require('escape-html');
+
+// Register .md as a template engine
+app.engine('md', function(path, options, fn) {
+  fs.readFile(path, 'utf8', function(err, str) {
+    if (err) return fn(err);
+    
+    // Parse markdown and replace variables
+    const html = marked.parse(str).replace(/\{([^}]+)\}/g, function(_, name) {
+      return escapeHtml(options[name] || '');
+    });
+    
+    fn(null, html);
+  });
+});
+
+app.set('view engine', 'md');
+
+app.get('/', function(req, res) {
+  res.render('index', { title: 'Markdown Example' });
+});
+```
+
+## Layouts and Partials
+
+<Accordion title="EJS Partials">
+  ```html
+  <!-- views/header.ejs -->
+  <header>
+    <h1><%= siteName %></h1>
+  </header>
+  
+  <!-- views/index.ejs -->
+  <%- include('header', { siteName: 'My Site' }) %>
+  <main>
+    <p>Content here</p>
+  </main>
+  <%- include('footer') %>
+  ```
+</Accordion>
+
+<Accordion title="Pug Includes and Extends">
+  ```pug
+  //- views/layout.pug
+  doctype html
+  html
+    head
+      title= title
+    body
+      block content
+  
+  //- views/index.pug
+  extends layout
+  
+  block content
+    h1 Welcome
+    p This is the index page
+  ```
+</Accordion>
+
+## Passing Data to Templates
+
+```javascript
+// Pass individual values
+res.render('index', {
+  title: 'My Page',
+  user: req.user
+});
+
+// Use res.locals for values available in all templates
+app.use((req, res, next) => {
+  res.locals.siteName = 'My Website';
+  res.locals.currentUser = req.user;
+  next();
+});
+```
+
+<Tip>
+  Use `res.locals` to set variables that should be available in all templates, such as the current user or site configuration.
+</Tip>
+
+## Caching Templates
+
+<Warning>
+  Enable view caching in production to improve performance:
+</Warning>
+
+```javascript
+if (app.get('env') === 'production') {
+  app.enable('view cache');
+}
+```
+
+## Best Practices
+
+- **Escape user input** to prevent XSS attacks
+- **Use partials/includes** for reusable components
+- **Enable caching** in production
+- **Keep logic minimal** in templates
+- **Use layouts** to avoid duplicating HTML structure
+- **Set appropriate content type** for non-HTML templates
+
+## Related
+
+- [Serving Static Files](/guides/serving-static-files)
+- [Security Best Practices](/guides/security)
+- [Production Best Practices](/guides/production-best-practices)

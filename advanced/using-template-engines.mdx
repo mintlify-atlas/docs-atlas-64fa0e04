@@ -1,0 +1,451 @@
+---
+title: Using Template Engines
+description: Advanced template engine integration and view rendering patterns
+---
+
+Express supports various template engines for rendering dynamic HTML. Learn how to configure, customize, and optimize template rendering in your applications.
+
+## Template Engine Basics
+
+Template engines allow you to use static template files with placeholders that are replaced with actual data at runtime.
+
+```javascript
+const express = require('express');
+const path = require('path');
+const app = express();
+
+// Set template engine
+app.set('view engine', 'ejs');
+
+// Set views directory
+app.set('views', path.join(__dirname, 'views'));
+
+// Render a view
+app.get('/', function(req, res) {
+  res.render('index', {
+    title: 'Home',
+    users: ['Alice', 'Bob', 'Charlie']
+  });
+});
+```
+
+## Popular Template Engines
+
+<Accordion title="EJS (Embedded JavaScript)">
+EJS is one of the most popular template engines for Express.
+
+```javascript
+const ejs = require('ejs');
+
+// Basic setup
+app.set('view engine', 'ejs');
+```
+
+Example template (`views/users.ejs`):
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= title %></title>
+</head>
+<body>
+  <h1><%= header %></h1>
+  <ul>
+    <% users.forEach(function(user) { %>
+      <li><%= user.name %> - <%= user.email %></li>
+    <% }); %>
+  </ul>
+</body>
+</html>
+```
+</Accordion>
+
+<Accordion title="Pug (formerly Jade)">
+Pug uses indentation-based syntax.
+
+```javascript
+app.set('view engine', 'pug');
+```
+
+Example template (`views/users.pug`):
+```pug
+html
+  head
+    title= title
+  body
+    h1= header
+    ul
+      each user in users
+        li= user.name + ' - ' + user.email
+```
+</Accordion>
+
+<Accordion title="Handlebars">
+Handlebars provides logic-less templates.
+
+```javascript
+const exphbs = require('express-handlebars');
+
+app.engine('handlebars', exphbs.engine());
+app.set('view engine', 'handlebars');
+```
+</Accordion>
+
+## Custom File Extensions
+
+Register a template engine with a custom file extension.
+
+```javascript
+const ejs = require('ejs');
+
+// Use .html files instead of .ejs
+app.engine('.html', ejs.__express);
+app.set('view engine', 'html');
+
+// Now you can use .html files
+app.get('/', function(req, res) {
+  res.render('index'); // Renders views/index.html
+});
+```
+
+<Tip>
+This is useful when you want HTML syntax highlighting in your editor while using template engines.
+</Tip>
+
+## View Locals
+
+Pass data to views using locals in multiple ways.
+
+<Steps>
+  <Step title="Pass directly to render()">
+    ```javascript
+    app.get('/', function(req, res) {
+      res.render('index', {
+        title: 'Home',
+        user: req.user
+      });
+    });
+    ```
+  </Step>
+  
+  <Step title="Use res.locals in middleware">
+    ```javascript
+    app.use(function(req, res, next) {
+      res.locals.user = req.user;
+      res.locals.session = req.session;
+      next();
+    });
+    
+    // Now available in all views
+    app.get('/', function(req, res) {
+      res.render('index', { title: 'Home' });
+    });
+    ```
+  </Step>
+  
+  <Step title="Set app-wide locals">
+    ```javascript
+    app.locals.siteName = 'My Website';
+    app.locals.version = '1.0.0';
+    
+    // Available in all views automatically
+    ```
+  </Step>
+</Steps>
+
+## Middleware Pattern for View Data
+
+Load data in middleware to keep route handlers clean.
+
+<CodeGroup>
+```javascript Nested Callbacks (Not Recommended)
+app.get('/', function(req, res, next) {
+  User.count(function(err, count) {
+    if (err) return next(err);
+    User.all(function(err, users) {
+      if (err) return next(err);
+      res.render('index', {
+        title: 'Users',
+        count: count,
+        users: users
+      });
+    });
+  });
+});
+```
+
+```javascript Middleware Pattern (Recommended)
+function loadCount(req, res, next) {
+  User.count(function(err, count) {
+    if (err) return next(err);
+    req.count = count;
+    next();
+  });
+}
+
+function loadUsers(req, res, next) {
+  User.all(function(err, users) {
+    if (err) return next(err);
+    req.users = users;
+    next();
+  });
+}
+
+app.get('/', loadCount, loadUsers, function(req, res) {
+  res.render('index', {
+    title: 'Users',
+    count: req.count,
+    users: req.users
+  });
+});
+```
+
+```javascript Using res.locals (Best for Templates)
+function loadCount(req, res, next) {
+  User.count(function(err, count) {
+    if (err) return next(err);
+    res.locals.count = count;
+    next();
+  });
+}
+
+function loadUsers(req, res, next) {
+  User.all(function(err, users) {
+    if (err) return next(err);
+    res.locals.users = users;
+    next();
+  });
+}
+
+app.get('/', loadCount, loadUsers, function(req, res) {
+  // Locals automatically available in template
+  res.render('index', { title: 'Users' });
+});
+```
+</CodeGroup>
+
+## Global Middleware for Common Locals
+
+Set up middleware to expose common data to all views.
+
+```javascript
+const session = require('express-session');
+
+app.use(session({
+  secret: 'keyboard cat',
+  resave: false,
+  saveUninitialized: false
+}));
+
+// Expose session data to all views
+app.use(function(req, res, next) {
+  res.locals.user = req.session.user;
+  res.locals.authenticated = !!req.session.user;
+  
+  // Flash messages
+  var messages = req.session.messages || [];
+  res.locals.messages = messages;
+  res.locals.hasMessages = messages.length > 0;
+  
+  // Clear messages after exposing
+  req.session.messages = [];
+  
+  next();
+});
+```
+
+## Custom View Engines
+
+Create your own template engine integration.
+
+```javascript
+const marked = require('marked');
+const fs = require('fs');
+
+// Custom Markdown engine
+app.engine('md', function(filePath, options, callback) {
+  fs.readFile(filePath, 'utf8', function(err, content) {
+    if (err) return callback(err);
+    
+    // Convert Markdown to HTML
+    const html = marked.parse(content);
+    
+    // Replace placeholders with data
+    let rendered = html;
+    for (let key in options) {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      rendered = rendered.replace(regex, options[key]);
+    }
+    
+    return callback(null, rendered);
+  });
+});
+
+app.set('view engine', 'md');
+```
+
+## View Caching
+
+Improve performance by enabling view caching in production.
+
+```javascript
+// Enable in production
+if (app.get('env') === 'production') {
+  app.enable('view cache');
+}
+
+// Or explicitly
+app.set('view cache', true);
+```
+
+<Warning>
+View caching is automatically enabled in production mode. During development, views are recompiled on each request.
+</Warning>
+
+## Partial Views and Layouts
+
+Reuse template components across multiple views.
+
+<CodeGroup>
+```javascript EJS Partials
+<!-- views/header.ejs -->
+<header>
+  <h1><%= siteName %></h1>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+  </nav>
+</header>
+
+<!-- views/index.ejs -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= title %></title>
+</head>
+<body>
+  <%- include('header') %>
+  
+  <main>
+    <h2>Welcome</h2>
+  </main>
+  
+  <%- include('footer') %>
+</body>
+</html>
+```
+
+```javascript Express Handlebars Layouts
+const exphbs = require('express-handlebars');
+
+app.engine('handlebars', exphbs.engine({
+  layoutsDir: __dirname + '/views/layouts',
+  defaultLayout: 'main'
+}));
+
+// views/layouts/main.handlebars
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{title}}</title>
+</head>
+<body>
+  {{{body}}}
+</body>
+</html>
+```
+</CodeGroup>
+
+## Environment-Specific Settings
+
+Configure template behavior based on environment.
+
+```javascript
+if (app.get('env') === 'development') {
+  // Verbose error pages in development
+  app.enable('verbose errors');
+  app.locals.pretty = true; // Pretty-print HTML
+}
+
+if (app.get('env') === 'production') {
+  // Optimize for production
+  app.disable('verbose errors');
+  app.enable('view cache');
+  app.locals.pretty = false;
+}
+```
+
+## Passing Functions to Templates
+
+Make helper functions available in templates.
+
+```javascript
+app.locals.formatDate = function(date) {
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+
+app.locals.truncate = function(str, length) {
+  return str.length > length 
+    ? str.substring(0, length) + '...' 
+    : str;
+};
+
+// In template (EJS):
+// <%= formatDate(post.createdAt) %>
+// <%= truncate(post.content, 100) %>
+```
+
+## Error Pages
+
+Render custom error pages using templates.
+
+```javascript
+const path = require('path');
+
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
+// 404 handler
+app.use(function(req, res, next) {
+  res.status(404);
+  res.render('404', { url: req.url });
+});
+
+// Error handler
+app.use(function(err, req, res, next) {
+  res.status(err.status || 500);
+  res.render('500', { 
+    error: app.get('env') === 'development' ? err : {} 
+  });
+});
+```
+
+## Best Practices
+
+<Tip>
+**Keep templates simple** - Move complex logic to controllers or middleware.
+</Tip>
+
+<Tip>
+**Use layouts and partials** - Reduce duplication and improve maintainability.
+</Tip>
+
+<Warning>
+**Escape user input** - Most engines do this by default, but verify for your chosen engine.
+</Warning>
+
+- Set appropriate views directory for your project structure
+- Enable view caching in production
+- Use `res.locals` for commonly used data
+- Keep business logic out of templates
+- Consider using a layout system for consistency
+
+## Next Steps
+
+- [Writing Middleware](/advanced/writing-middleware) - Advanced middleware patterns
+- [Error Handling](/guides/error-handling) - Handle and display errors
+- [Template Engines Guide](/guides/template-engines) - Getting started with templates
