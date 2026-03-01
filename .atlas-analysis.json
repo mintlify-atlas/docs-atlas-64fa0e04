@@ -1,0 +1,103 @@
+{
+  "projectType": "framework",
+  "projectName": "Express",
+  "projectDescription": "Fast, unopinionated, minimalist web framework for Node.js",
+  "theme": "palm",
+  "primaryColor": "#000000",
+  "lightColor": "#68A063",
+  "darkColor": "#68A063",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart",
+              "hello-world"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/application",
+              "core/routing",
+              "core/middleware",
+              "core/request",
+              "core/response"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/error-handling",
+              "guides/debugging",
+              "guides/database-integration",
+              "guides/template-engines",
+              "guides/serving-static-files",
+              "guides/security",
+              "guides/production-best-practices"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/writing-middleware",
+              "advanced/using-template-engines",
+              "advanced/process-managers",
+              "advanced/health-checks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/express",
+              "api/application",
+              "api/request",
+              "api/response",
+              "api/router"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Robust routing with HTTP methods and URL patterns",
+    "Middleware architecture for request/response processing",
+    "HTTP helpers for redirects, caching, and content negotiation",
+    "View system supporting 14+ template engines",
+    "Content negotiation and static file serving",
+    "High performance and minimal overhead",
+    "Extensive ecosystem of middleware and plugins"
+  ],
+  "publicApiSurface": [
+    "express() - Create application instance",
+    "app.get/post/put/delete() - Define routes",
+    "app.use() - Mount middleware",
+    "app.listen() - Start server",
+    "app.set/get() - Application settings",
+    "app.render() - Render views",
+    "express.Router() - Create modular routers",
+    "express.static() - Serve static files",
+    "express.json() - Parse JSON bodies",
+    "express.urlencoded() - Parse URL-encoded bodies",
+    "req.params - Route parameters",
+    "req.query - Query string parameters",
+    "req.body - Request body",
+    "req.get() - Get request header",
+    "res.send() - Send response",
+    "res.json() - Send JSON response",
+    "res.status() - Set status code",
+    "res.render() - Render view template",
+    "res.redirect() - Redirect request"
+  ]
+}
